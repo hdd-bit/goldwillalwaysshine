@@ -295,6 +295,7 @@
     </div>
 
     <script>
+        // Supabase 접속 정보 (제공해주신 Key 반영 완료)
         const SUPABASE_URL = "https://oxlmwkvbgxszuhguwxif.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bG13a3ZiZ3hzenVoZ3V3eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjQ4NzYsImV4cCI6MjEwMzg0MDg3Nn0.91VC1LGKPe8MOWNbg5KfWXR5jAHZIyh4d4HXP8uz9_4";
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -312,6 +313,7 @@
 
         async function loadStorage() {
             try {
+                // 1. 학생 목록
                 const { data: stdData, error: e1 } = await _supabase.from('students').select('*');
                 if (e1) console.error("학생 데이터 로드 실패:", e1);
                 if (stdData) {
@@ -330,6 +332,7 @@
                     });
                 }
 
+                // 2. 역할 목록
                 const { data: roleData, error: e2 } = await _supabase.from('roles').select('*');
                 if (e2) console.error("역할 데이터 로드 실패:", e2);
                 if (roleData) {
@@ -344,6 +347,7 @@
                     });
                 }
 
+                // 3. 거래 내역
                 const { data: txData, error: e3 } = await _supabase.from('transactions').select('*');
                 if (e3) console.error("거래 내역 로드 실패:", e3);
                 if (txData) {
@@ -363,7 +367,8 @@
                     });
                 }
 
-                const { data: setDb, error: e4 } = await _supabase.from('settings').select('*').eq('id', 'default').single();
+                // 4. 설정 정보 (.maybeSingle()로 406 방지)
+                const { data: setDb } = await _supabase.from('settings').select('*').eq('id', 'default').maybeSingle();
                 if (setDb) {
                     settings.currentSemester = setDb.current_semester || "2026-1학기";
                     settings.passwordHash = setDb.password_hash || "";
@@ -384,12 +389,12 @@
                 created_at: studentObj.createdAt,
                 updated_at: studentObj.updatedAt
             });
-            if (error) console.error("학생 저장 실패:", error);
+            if (error) console.error("학생 동기화 에러:", error);
         }
 
         async function syncStudentDeleteToCloud(studentId) {
             const { error } = await _supabase.from('students').delete().eq('id', studentId);
-            if (error) console.error("학생 삭제 실패:", error);
+            if (error) console.error("학생 삭제 동기화 에러:", error);
         }
 
         async function syncRoleToCloud(roleObj) {
@@ -399,12 +404,12 @@
                 salary: roleObj.salary,
                 description: roleObj.description
             });
-            if (error) console.error("역할 저장 실패:", error);
+            if (error) console.error("역할 동기화 에러:", error);
         }
 
         async function syncRoleDeleteToCloud(roleId) {
             const { error } = await _supabase.from('roles').delete().eq('id', roleId);
-            if (error) console.error("역할 삭제 실패:", error);
+            if (error) console.error("역할 삭제 동기화 에러:", error);
         }
 
         async function syncTxToCloud(txObj) {
@@ -419,7 +424,7 @@
                 semester: txObj.semester,
                 created_at: txObj.createdAt
             });
-            if (error) console.error("거래내역 저장 실패:", error);
+            if (error) console.error("거래내역 동기화 에러:", error);
         }
 
         async function syncSettingsToCloud() {
@@ -428,7 +433,7 @@
                 current_semester: settings.currentSemester,
                 password_hash: settings.passwordHash
             });
-            if (error) console.error("설정 저장 실패:", error);
+            if (error) console.error("설정 동기화 에러:", error);
         }
 
         function setupRealtime() {
@@ -460,7 +465,7 @@
         });
 
         async function verifyPasswordPrompt() {
-            const input = prompt("작업 비밀번호를 입력하세요:");
+            const input = prompt("작업 비밀번호를 입력하세요 (기본: 1234):");
             if (!input) return false;
             const inputHash = await hashPassword(input);
             if (inputHash === settings.passwordHash) {
