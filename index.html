@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학급 화폐 관리 시스템</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (Excel 내보내기/가져오기 Library) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <!-- 헤더 -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded-xl shadow-sm mb-6 border border-slate-200">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">학급 화폐 관리 시스템</h1>
+        <p class="text-xs text-slate-500 mt-1">로컬 브라우저에 데이터를 안전하게 저장합니다.</p>
+      </div>
+      <div class="mt-4 md:mt-0 flex items-center space-x-2">
+        <span id="semester-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-full">학기 정보 로딩 중...</span>
+      </div>
+    </header>
+
+    <!-- 대시보드 요약 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-xs text-slate-500">총 등록 학생</p>
+        <p id="stat-total-students" class="text-xl md:text-2xl font-bold text-slate-800 mt-1">0명</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-xs text-slate-500">총 화폐 유통량</p>
+        <p id="stat-total-cham" class="text-xl md:text-2xl font-bold text-blue-600 mt-1">0 챔</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-xs text-slate-500">현재 학기</p>
+        <p id="stat-current-semester" class="text-xl md:text-2xl font-bold text-slate-800 mt-1">-</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-xs text-slate-500">누적 거래 건수</p>
+        <p id="stat-total-tx" class="text-xl md:text-2xl font-bold text-slate-800 mt-1">0건</p>
+      </div>
+    </div>
+
+    <!-- 네비게이션 탭 -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-x-auto">
+      <div class="flex border-b border-slate-200 min-w-max">
+        <button id="btn-tab-students" onclick="switchTab('tab-students')" class="tab-btn px-6 py-3 font-semibold text-sm border-b-2 text-blue-600 border-blue-600">학생 관리</button>
+        <button id="btn-tab-use" onclick="switchTab('tab-use')" class="tab-btn px-6 py-3 font-semibold text-sm text-slate-500">화폐 사용/지급</button>
+        <button id="btn-tab-weekly" onclick="switchTab('tab-weekly')" class="tab-btn px-6 py-3 font-semibold text-sm text-slate-500">주급 일괄 지급</button>
+        <button id="btn-tab-history" onclick="switchTab('tab-history')" class="tab-btn px-6 py-3 font-semibold text-sm text-slate-500">거래 내역</button>
+        <button id="btn-tab-settings" onclick="switchTab('tab-settings')" class="tab-btn px-6 py-3 font-semibold text-sm text-slate-500">설정/관리</button>
+      </div>
+    </div>
+
+    <!-- 탭 1: 학생 관리 -->
+    <div id="tab-students" class="tab-content space-y-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold mb-4">신규 학생 등록</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input type="number" id="new-num" placeholder="번호 (예: 1)" class="border p-2 rounded text-sm w-full">
+          <input type="text" id="new-name" placeholder="이름" class="border p-2 rounded text-sm w-full">
+          <input type="number" id="new-balance" placeholder="초기 잔액 (선택)" class="border p-2 rounded text-sm w-full">
+          <button onclick="addStudent()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition text-sm">학생 추가</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-200">
+          <h2 class="text-lg font-bold">학생 명단</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <tr>
+                <th class="p-3">번호</th>
+                <th class="p-3">이름</th>
+                <th class="p-3">현재 잔액</th>
+                <th class="p-3">상태</th>
+                <th class="p-3">관리</th>
+              </tr>
+            </thead>
+            <tbody id="student-list-tbody" class="divide-y divide-slate-100">
+              <!-- 학생 데이터 동적 추가 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 2: 화폐 사용/지급/차감 -->
+    <div id="tab-use" class="tab-content hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- 사용 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-slate-800 mb-4">화폐 사용</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">학생 선택</label>
+            <select id="use-student" class="border p-2 rounded text-sm w-full"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">금액 (5 단위)</label>
+            <input type="number" id="use-amount" step="5" placeholder="예: 10" class="border p-2 rounded text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">사용 사유</label>
+            <input type="text" id="use-reason" placeholder="예: 면제권 구매" class="border p-2 rounded text-sm w-full">
+          </div>
+          <button onclick="processUse()" class="w-full bg-slate-800 text-white font-semibold py-2 rounded hover:bg-slate-900 transition text-sm">사용 승인</button>
+        </div>
+      </div>
+
+      <!-- 보너스 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-green-700 mb-4">보너스 지급</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">학생 선택</label>
+            <select id="bonus-student" class="border p-2 rounded text-sm w-full"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">지급 금액</label>
+            <input type="number" id="bonus-amount" placeholder="예: 5" class="border p-2 rounded text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">지급 사유</label>
+            <input type="text" id="bonus-reason" placeholder="예: 발표 도우미" class="border p-2 rounded text-sm w-full">
+          </div>
+          <button onclick="processBonus()" class="w-full bg-green-600 text-white font-semibold py-2 rounded hover:bg-green-700 transition text-sm">보너스 지급</button>
+        </div>
+      </div>
+
+      <!-- 차감 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-red-600 mb-4">벌금 / 차감</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">학생 선택</label>
+            <select id="deduct-student" class="border p-2 rounded text-sm w-full"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">차감 금액</label>
+            <input type="number" id="deduct-amount" placeholder="예: 5" class="border p-2 rounded text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">차감 사유</label>
+            <input type="text" id="deduct-reason" placeholder="예: 과제 미제출" class="border p-2 rounded text-sm w-full">
+          </div>
+          <button onclick="processDeduct()" class="w-full bg-red-600 text-white font-semibold py-2 rounded hover:bg-red-700 transition text-sm">금액 차감</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 3: 주급 일괄 지급 -->
+    <div id="tab-weekly" class="tab-content hidden space-y-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold mb-4">주급 일괄 지급</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <input type="number" id="weekly-amount" placeholder="지급 금액 (예: 10)" class="border p-2 rounded text-sm w-full">
+          <input type="text" id="weekly-reason" placeholder="지급 사유 (예: 1주차 주급)" class="border p-2 rounded text-sm w-full">
+          <button onclick="processWeeklyPay()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition text-sm">선택 항목 일괄 지급</button>
+        </div>
+        <div class="flex space-x-2 mb-4">
+          <button onclick="selectAllActive(true)" class="text-xs bg-slate-100 px-3 py-1.5 rounded hover:bg-slate-200 font-medium">전체 선택</button>
+          <button onclick="selectAllActive(false)" class="text-xs bg-slate-100 px-3 py-1.5 rounded hover:bg-slate-200 font-medium">전체 해제</button>
+        </div>
+        <div id="weekly-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <!-- 체크박스 학생 명단 동적 생성 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 4: 거래 내역 -->
+    <div id="tab-history" class="tab-content hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3 items-center">
+        <select id="filter-student" onchange="renderHistory()" class="border p-2 rounded text-sm"></select>
+        <select id="filter-semester" onchange="renderHistory()" class="border p-2 rounded text-sm"></select>
+        <input type="text" id="filter-keyword" onkeyup="renderHistory()" placeholder="사유 검색..." class="border p-2 rounded text-sm flex-grow">
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <tr>
+                <th class="p-3">일시</th>
+                <th class="p-3">학기</th>
+                <th class="p-3">학생명</th>
+                <th class="p-3">종류</th>
+                <th class="p-3">금액</th>
+                <th class="p-3">거래 후 잔액</th>
+                <th class="p-3">사유</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody" class="divide-y divide-slate-100">
+              <!-- 거래 내역 동적 추가 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 5: 설정 및 데이터 백업 -->
+    <div id="tab-settings" class="tab-content hidden space-y-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold mb-4">데이터 엑셀 백업 & 불러오기</h2>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="exportToExcel()" class="bg-green-600 text-white font-semibold py-2 px-4 rounded hover:bg-green-700 transition text-sm">엑셀로 백업 다운로드</button>
+          <div class="flex items-center space-x-2">
+            <input type="file" id="excel-import-file" accept=".xlsx, .xls" class="border p-1.5 rounded text-sm">
+            <button onclick="importFromExcel()" class="bg-slate-800 text-white font-semibold py-2 px-4 rounded hover:bg-slate-900 transition text-sm">엑셀 파일 가져오기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-red-600 mb-4">학기 변경 및 잔액 초기화</h2>
+        <div class="flex flex-col md:flex-row gap-3">
+          <input type="text" id="new-semester-name" placeholder="새 학기 이름 (예: 2026-2학기)" class="border p-2 rounded text-sm flex-grow">
+          <button onclick="resetSemester()" class="bg-red-600 text-white font-semibold py-2 px-4 rounded hover:bg-red-700 transition text-sm">학기 변경 및 전체 초기화</button>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold mb-4">관리자 비밀번호 변경</h2>
+        <div class="max-w-md space-y-3">
+          <input type="password" id="pwd-curr" placeholder="현재 비밀번호 (기본: 1234)" class="border p-2 rounded text-sm w-full">
+          <input type="password" id="pwd-new" placeholder="새 비밀번호" class="border p-2 rounded text-sm w-full">
+          <input type="password" id="pwd-confirm" placeholder="새 비밀번호 확인" class="border p-2 rounded text-sm w-full">
+          <button onclick="changePassword()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition text-sm">비밀번호 변경</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Data Storage (localStorage) ---
+    let students = {};
+    let transactions = {};
+    let settings = { currentSemester: "2026-1학기", passwordHash: "" };
+
+    // SHA-256 암호화
+    async function hashPassword(str) {
+      const buffer = new TextEncoder().encode(str);
+      const hash = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // 데이터 로드
+    function loadStorage() {
+      const savedStudents = localStorage.getItem('class_students');
+      const savedTx = localStorage.getItem('class_transactions');
+      const savedSettings = localStorage.getItem('class_settings');
+
+      if (savedStudents) students = JSON.parse(savedStudents);
+      if (savedTx) transactions = JSON.parse(savedTx);
+      if (savedSettings) settings = JSON.parse(savedSettings);
+    }
+
+    // 데이터 저장
+    function saveStorage() {
+      localStorage.setItem('class_students', JSON.stringify(students));
+      localStorage.setItem('class_transactions', JSON.stringify(transactions));
+      localStorage.setItem('class_settings', JSON.stringify(settings));
+    }
+
+    // 초기화
+    window.addEventListener('DOMContentLoaded', async () => {
+      loadStorage();
+      if (!settings.passwordHash) {
+        settings.passwordHash = await hashPassword('1234');
+        saveStorage();
+      }
+      renderStudents();
+      renderStudentSelects();
+      renderHistory();
+      updateDashboard();
+    });
+
+    // 비밀번호 검증
+    async function verifyPasswordPrompt() {
+      const input = prompt("작업 비밀번호를 입력하세요:");
+      if (!input) return false;
+      const inputHash = await hashPassword(input);
+      if (inputHash === settings.passwordHash) {
+        return true;
+      } else {
+        alert("비밀번호가 일치하지 않습니다.");
+        return false;
+      }
+    }
+
+    // 탭 전환
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        el.classList.add('text-slate-500');
+      });
+      document.getElementById(tabId)?.classList.remove('hidden');
+      const activeBtn = document.getElementById(`btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        activeBtn.classList.remove('text-slate-500');
+      }
+    }
+
+    // 대시보드 업데이트
+    function updateDashboard() {
+      const list = Object.values(students);
+      const totalCham = list.reduce((acc, cur) => acc + (cur.balance || 0), 0);
+      const totalTx = Object.keys(transactions).length;
+
+      document.getElementById('stat-total-students').innerText = `${list.length}명`;
+      document.getElementById('stat-total-cham').innerText = `${totalCham} 챔`;
+      document.getElementById('stat-current-semester').innerText = settings.currentSemester || '-';
+      document.getElementById('semester-badge').innerText = settings.currentSemester || '학기 정보 없음';
+      document.getElementById('stat-total-tx').innerText = `${totalTx}건`;
+    }
+
+    // 학생 등록
+    function addStudent() {
+      const numInput = document.getElementById('new-num');
+      const nameInput = document.getElementById('new-name');
+      const balInput = document.getElementById('new-balance');
+
+      const num = numInput.value.trim();
+      const name = nameInput.value.trim();
+      const bal = balInput.value !== "" ? parseInt(balInput.value) : 0;
+
+      if (!num || !name) {
+        alert("번호와 이름을 모두 입력해 주세요.");
+        return;
+      }
+
+      const newId = 'std_' + Date.now();
+      const now = new Date().toISOString();
+
+      students[newId] = {
+        id: newId,
+        number: parseInt(num),
+        name: name,
+        balance: bal,
+        active: true,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      logTransaction(newId, name, "등록", bal, "신규 학생 등록", bal);
+      saveStorage();
+
+      renderStudents();
+      renderStudentSelects();
+      updateDashboard();
+
+      numInput.value = '';
+      nameInput.value = '';
+      balInput.value = '';
+    }
+
+    // 학생 삭제
+    async function deleteStudent(id) {
+      if (!await verifyPasswordPrompt()) return;
+      if (confirm("정말 이 학생을 삭제하시겠습니까?")) {
+        const name = students[id]?.name;
+        delete students[id];
+        logTransaction(id, name, "삭제", 0, "학생 정보 삭제", 0);
+        saveStorage();
+
+        renderStudents();
+        renderStudentSelects();
+        updateDashboard();
+      }
+    }
+
+    // 활성/비활성 토글
+    function toggleStatus(id) {
+      students[id].active = !students[id].active;
+      students[id].updatedAt = new Date().toISOString();
+      saveStorage();
+      renderStudents();
+      renderStudentSelects();
+    }
+
+    // 학생 목록 랜더링
+    function renderStudents() {
+      const tbody = document.getElementById('student-list-tbody');
+      tbody.innerHTML = '';
+      const sorted = Object.values(students).sort((a,b) => a.number - b.number);
+
+      sorted.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="p-3 font-medium">${s.number}</td>
+          <td class="p-3">${s.name}</td>
+          <td class="p-3 font-bold text-blue-600">${s.balance} 챔</td>
+          <td class="p-3">
+            <button onclick="toggleStatus('${s.id}')" class="px-2 py-1 text-xs rounded-full ${s.active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
+              ${s.active ? '활성' : '비활성'}
+            </button>
+          </td>
+          <td class="p-3">
+            <button onclick="deleteStudent('${s.id}')" class="text-xs text-red-500 hover:text-red-700 font-medium">삭제</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 학생 선택드롭다운 및 체크박스 랜더링
+    function renderStudentSelects() {
+      const selects = ['use-student', 'bonus-student', 'deduct-student', 'filter-student'];
+      const activeStudents = Object.values(students).filter(s => s.active).sort((a,b) => a.number - b.number);
+
+      selects.forEach(selId => {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = selId === 'filter-student' ? '<option value="ALL">전체 학생</option>' : '<option value="">학생 선택</option>';
+
+        const list = selId === 'filter-student' ? Object.values(students) : activeStudents;
+        list.forEach(s => {
+          sel.innerHTML += `<option value="${s.id}">${s.number}번 ${s.name} (잔액: ${s.balance}챔)</option>`;
+        });
+        sel.value = currentVal;
+      });
+
+      const weeklyList = document.getElementById('weekly-student-list');
+      weeklyList.innerHTML = '';
+      activeStudents.forEach(s => {
+        weeklyList.innerHTML += `
+          <label class="flex items-center space-x-2 border p-2 rounded bg-white hover:bg-slate-50 text-sm cursor-pointer">
+            <input type="checkbox" value="${s.id}" class="weekly-chk rounded text-blue-600">
+            <span>${s.number}번 ${s.name} (${s.balance}챔)</span>
+          </label>
+        `;
+      });
+    }
+
+    // 내역 기록
+    function logTransaction(studentId, studentName, type, amount, reason, balanceAfter) {
+      const txId = 'tx_' + Date.now();
+      transactions[txId] = {
+        id: txId,
+        studentId: studentId,
+        studentName: studentName,
+        type: type,
+        amount: amount,
+        reason: reason,
+        balanceAfter: balanceAfter,
+        semester: settings.currentSemester,
+        createdAt: new Date().toLocaleString('ko-KR')
+      };
+      saveStorage();
+      renderHistory();
+      updateDashboard();
+    }
+
+    // 사용
+    async function processUse() {
+      const id = document.getElementById('use-student').value;
+      const amt = parseInt(document.getElementById('use-amount').value);
+      const reason = document.getElementById('use-reason').value;
+
+      if (!id || !amt || !reason) return alert("모든 항목을 입력하세요.");
+      if (amt % 5 !== 0) return alert("사용 금액은 5챔 단위로만 가능합니다.");
+      if (students[id].balance < amt) return alert("잔액이 부족합니다.");
+
+      if (!await verifyPasswordPrompt()) return;
+
+      const newBal = students[id].balance - amt;
+      students[id].balance = newBal;
+      logTransaction(id, students[id].name, "사용", -amt, reason, newBal);
+
+      saveStorage();
+      renderStudents();
+      document.getElementById('use-amount').value = '';
+      document.getElementById('use-reason').value = '';
+      alert("사용 승인 처리되었습니다.");
+    }
+
+    // 보너스
+    async function processBonus() {
+      const id = document.getElementById('bonus-student').value;
+      const amt = parseInt(document.getElementById('bonus-amount').value);
+      const reason = document.getElementById('bonus-reason').value;
+
+      if (!id || !amt || !reason) return alert("모든 항목을 입력하세요.");
+      if (!await verifyPasswordPrompt()) return;
+
+      const newBal = students[id].balance + amt;
+      students[id].balance = newBal;
+      logTransaction(id, students[id].name, "보너스", amt, reason, newBal);
+
+      saveStorage();
+      renderStudents();
+      document.getElementById('bonus-amount').value = '';
+      document.getElementById('bonus-reason').value = '';
+      alert("보너스 지급 승인 완료되었습니다.");
+    }
+
+    // 차감
+    async function processDeduct() {
+      const id = document.getElementById('deduct-student').value;
+      const amt = parseInt(document.getElementById('deduct-amount').value);
+      const reason = document.getElementById('deduct-reason').value;
+
+      if (!id || !amt || !reason) return alert("모든 항목을 입력하세요.");
+      if (students[id].balance < amt) return alert("잔액이 부족합니다.");
+      if (!await verifyPasswordPrompt()) return;
+
+      const newBal = students[id].balance - amt;
+      students[id].balance = newBal;
+      logTransaction(id, students[id].name, "차감", -amt, reason, newBal);
+
+      saveStorage();
+      renderStudents();
+      document.getElementById('deduct-amount').value = '';
+      document.getElementById('deduct-reason').value = '';
+      alert("차감 완료되었습니다.");
+    }
+
+    // 주급 선택 토글
+    function selectAllActive(status) {
+      document.querySelectorAll('.weekly-chk').forEach(chk => chk.checked = status);
+    }
+
+    // 주급 일괄 지급
+    async function processWeeklyPay() {
+      const chks = document.querySelectorAll('.weekly-chk:checked');
+      const amt = parseInt(document.getElementById('weekly-amount').value);
+      const reason = document.getElementById('weekly-reason').value;
+
+      if (chks.length === 0) return alert("지급할 학생을 선택하세요.");
+      if (!amt || !reason) return alert("금액과 사유를 입력하세요.");
+      if (!await verifyPasswordPrompt()) return;
+
+      chks.forEach(chk => {
+        const id = chk.value;
+        const newBal = (students[id].balance || 0) + amt;
+        students[id].balance = newBal;
+        logTransaction(id, students[id].name, "주급", amt, reason, newBal);
+      });
+
+      saveStorage();
+      renderStudents();
+      alert(`${chks.length}명의 학생에게 주급 지급이 완료되었습니다.`);
+    }
+
+    // 거래 내역 랜더링
+    function renderHistory() {
+      const tbody = document.getElementById('history-tbody');
+      tbody.innerHTML = '';
+
+      const filterStudent = document.getElementById('filter-student')?.value || 'ALL';
+      const filterSemester = document.getElementById('filter-semester')?.value || 'ALL';
+      const keyword = (document.getElementById('filter-keyword')?.value || '').toLowerCase();
+
+      let list = Object.values(transactions);
+
+      const semesters = [...new Set(list.map(t => t.semester))].filter(Boolean);
+      const semSel = document.getElementById('filter-semester');
+      if (semSel) {
+        const currentSem = semSel.value;
+        semSel.innerHTML = '<option value="ALL">전체 학기</option>';
+        semesters.forEach(s => semSel.innerHTML += `<option value="${s}">${s}</option>`);
+        semSel.value = currentSem;
+      }
+
+      if (filterStudent !== 'ALL') list = list.filter(t => t.studentId === filterStudent);
+      if (filterSemester !== 'ALL') list = list.filter(t => t.semester === filterSemester);
+      if (keyword) list = list.filter(t => (t.reason || '').toLowerCase().includes(keyword));
+
+      list.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      list.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50";
+        const amtColor = t.amount > 0 ? "text-green-600 font-bold" : (t.amount < 0 ? "text-red-600 font-bold" : "text-slate-500");
+        const amtSign = t.amount > 0 ? `+${t.amount}` : t.amount;
+
+        tr.innerHTML = `
+          <td class="p-3 text-xs text-slate-400">${t.createdAt}</td>
+          <td class="p-3 text-xs">${t.semester || '-'}</td>
+          <td class="p-3 font-medium">${t.studentName}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${t.type}</span></td>
+          <td class="p-3 ${amtColor}">${amtSign} 챔</td>
+          <td class="p-3 text-slate-600">${t.balanceAfter} 챔</td>
+          <td class="p-3 text-slate-500">${t.reason}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 엑셀 내보내기
+    function exportToExcel() {
+      const studentData = Object.values(students).map(s => ({
+        번호: s.number, 이름: s.name, 잔액: s.balance, 상태: s.active ? "활성" : "비활성", 생성일: s.createdAt, 수정일: s.updatedAt
+      }));
+
+      const txData = Object.values(transactions).map(t => ({
+        일시: t.createdAt, 학기: t.semester, 학생명: t.studentName, 종류: t.type, 금액: t.amount, 잔액: t.balanceAfter, 사유: t.reason
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const wsStudents = XLSX.utils.json_to_sheet(studentData);
+      const wsTx = XLSX.utils.json_to_sheet(txData);
+
+      XLSX.utils.book_append_sheet(wb, wsStudents, "학생명단");
+      XLSX.utils.book_append_sheet(wb, wsTx, "거래내역");
+
+      XLSX.writeFile(wb, "학급화폐_데이터.xlsx");
+    }
+
+    // 엑셀 가져오기
+    function importFromExcel() {
+      const fileInput = document.getElementById('excel-import-file');
+      if (!fileInput || !fileInput.files.length) return alert("엑셀 파일을 선택해 주세요.");
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (json.length === 0) return alert("빈 엑셀 파일입니다.");
+
+        let importedCount = 0;
+        const startIdx = (typeof json[0][0] === 'number') ? 0 : 1;
+
+        for (let i = startIdx; i < json.length; i++) {
+          const row = json[i];
+          if (row && row.length >= 2) {
+            const num = parseInt(row[0]);
+            const name = row[1];
+            const bal = parseInt(row[2]) || 0;
+
+            if (num && name) {
+              const newId = 'std_' + Date.now() + '_' + i;
+              const now = new Date().toISOString();
+              students[newId] = { id: newId, number: num, name: name, balance: bal, active: true, createdAt: now, updatedAt: now };
+              logTransaction(newId, name, "가져오기", bal, "엑셀 가져오기 등록", bal);
+              importedCount++;
+            }
+          }
+        }
+
+        saveStorage();
+        renderStudents();
+        renderStudentSelects();
+        updateDashboard();
+        alert(`${importedCount}명의 학생 등록을 완료했습니다.`);
+        fileInput.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 학기 초기화
+    async function resetSemester() {
+      const newSem = document.getElementById('new-semester-name').value;
+      if (!newSem) return alert("새 학기명을 입력해 주세요.");
+      if (!await verifyPasswordPrompt()) return;
+
+      if (confirm(`현재 모든 학생의 잔액을 0으로 초기화하고 '${newSem}' 학기를 시작하시겠습니까?`)) {
+        settings.currentSemester = newSem;
+
+        Object.values(students).forEach(s => {
+          logTransaction(s.id, s.name, "학기 초기화", -s.balance, `'${newSem}' 학기 초기화`, 0);
+          s.balance = 0;
+        });
+
+        saveStorage();
+        renderStudents();
+        updateDashboard();
+
+        document.getElementById('new-semester-name').value = '';
+        alert("학기 초기화가 완료되었습니다.");
+      }
+    }
+
+    // 비밀번호 변경
+    async function changePassword() {
+      const curr = document.getElementById('pwd-curr').value;
+      const newP = document.getElementById('pwd-new').value;
+      const conf = document.getElementById('pwd-confirm').value;
+
+      if (!curr || !newP || !conf) return alert("모든 비밀번호 항목을 입력하세요.");
+
+      const currHash = await hashPassword(curr);
+      if (currHash !== settings.passwordHash) return alert("현재 비밀번호가 올바르지 않습니다.");
+      if (newP.length < 4) return alert("새 비밀번호는 4자 이상이어야 합니다.");
+      if (newP !== conf) return alert("새 비밀번호 확인이 일치하지 않습니다.");
+
+      const newHash = await hashPassword(newP);
+      settings.passwordHash = newHash;
+      saveStorage();
+
+      document.getElementById('pwd-curr').value = '';
+      document.getElementById('pwd-new').value = '';
+      document.getElementById('pwd-confirm').value = '';
+      alert("비밀번호가 성공적으로 변경되었습니다.");
+    }
+  </script>
+</body>
+</html>
