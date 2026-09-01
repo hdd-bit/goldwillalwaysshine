@@ -14,7 +14,7 @@
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded-xl shadow-sm mb-6 border border-slate-200">
       <div>
         <h1 class="text-2xl font-bold text-slate-900">학급 화폐 관리 시스템</h1>
-        <p class="text-xs text-slate-500 mt-1">실시간 데이터 동기화 모드 작동 중</p>
+        <p class="text-xs text-slate-500 mt-1">Supabase 실시간 데이터 동기화 모드 작동 중</p>
       </div>
       <div class="mt-4 md:mt-0">
         <span id="semester-badge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-full">로딩 중...</span>
@@ -84,25 +84,70 @@
     </div>
 
     <div id="tab-pay" class="tab-content hidden space-y-6">
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-        <h2 class="text-lg font-bold mb-4 text-blue-700">학생 일괄 / 다중 선택 지급</h2>
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-200 bg-blue-50/20">
+        <div class="flex items-center space-x-2 mb-2">
+          <span class="text-xl">💵</span>
+          <h2 class="text-lg font-bold text-blue-900">주급 지급</h2>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">기본 주급 금액을 설정하고 대상 학생을 선택하여 일괄 지급합니다.</p>
         
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-          <select id="pay-type" class="border p-2 rounded text-sm font-semibold">
-            <option value="주급">주급 지급</option>
-            <option value="보너스">보너스 지급</option>
-          </select>
-          <input type="number" id="pay-amount" placeholder="지급 금액 (예: 10)" class="border p-2 rounded text-sm">
-          <input type="text" id="pay-reason" placeholder="지급 사유 (예: 1주차 주급 / 발표 우수)" class="border p-2 rounded text-sm">
-          <button onclick="processMultiPay()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition text-sm">선택 학생 일괄 지급</button>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">주급 금액</label>
+            <input type="number" id="weekly-pay-amount" value="10" placeholder="금액 (예: 10)" class="border p-2 rounded text-sm w-full bg-white">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">지급 사유</label>
+            <input type="text" id="weekly-pay-reason" value="주급 지급" placeholder="사유 입력" class="border p-2 rounded text-sm w-full bg-white">
+          </div>
         </div>
 
-        <div class="flex space-x-2 mb-3">
-          <button onclick="toggleCheckGroup('pay-chk', true)" class="text-xs bg-slate-100 px-3 py-1.5 rounded hover:bg-slate-200 font-medium">전체 선택</button>
-          <button onclick="toggleCheckGroup('pay-chk', false)" class="text-xs bg-slate-100 px-3 py-1.5 rounded hover:bg-slate-200 font-medium">전체 해제</button>
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-semibold text-slate-600">지급 대상 학생 선택</span>
+          <div class="space-x-1">
+            <button onclick="toggleCheckGroup('weekly-pay-chk', true)" class="text-xs bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100">전체 선택</button>
+            <button onclick="toggleCheckGroup('weekly-pay-chk', false)" class="text-xs bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100">전체 해제</button>
+          </div>
         </div>
 
-        <div id="pay-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 border p-3 rounded-lg max-h-60 overflow-y-auto"></div>
+        <div id="weekly-pay-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 border p-3 rounded-lg max-h-48 overflow-y-auto bg-white mb-4"></div>
+
+        <button onclick="processWeeklyPay()" class="w-full bg-blue-600 text-white font-semibold py-2.5 px-4 rounded hover:bg-blue-700 transition text-sm shadow-sm">
+          선택 학생 주급 지급 완료
+        </button>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-emerald-200 bg-emerald-50/20">
+        <div class="flex items-center space-x-2 mb-2">
+          <span class="text-xl">🎁</span>
+          <h2 class="text-lg font-bold text-emerald-900">보너스 지급</h2>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">특정 활동이나 수고에 대한 보너스 챔을 임의 금액으로 지급합니다.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">보너스 금액</label>
+            <input type="number" id="bonus-pay-amount" placeholder="금액 (예: 5)" class="border p-2 rounded text-sm w-full bg-white">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">보너스 사유</label>
+            <input type="text" id="bonus-pay-reason" placeholder="사유 (예: 발표 우수, 칭찬 스티커 모음)" class="border p-2 rounded text-sm w-full bg-white">
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-semibold text-slate-600">지급 대상 학생 선택</span>
+          <div class="space-x-1">
+            <button onclick="toggleCheckGroup('bonus-pay-chk', true)" class="text-xs bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100">전체 선택</button>
+            <button onclick="toggleCheckGroup('bonus-pay-chk', false)" class="text-xs bg-white border border-slate-300 px-2 py-1 rounded hover:bg-slate-100">전체 해제</button>
+          </div>
+        </div>
+
+        <div id="bonus-pay-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 border p-3 rounded-lg max-h-48 overflow-y-auto bg-white mb-4"></div>
+
+        <button onclick="processBonusPay()" class="w-full bg-emerald-600 text-white font-semibold py-2.5 px-4 rounded hover:bg-emerald-700 transition text-sm shadow-sm">
+          선택 학생 보너스 지급 완료
+        </button>
       </div>
     </div>
 
@@ -232,14 +277,13 @@
   </div>
 
   <script>
-    // 입력해주신 Supabase 엔드포인트 및 API Key 적용
     const SUPABASE_URL = "https://oxlmwkvbgxszuhguwxif.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bG13a3ZiZ3hzenVoZ3V3eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjQ4NzYsImV4cCI6MjEwMzg0MDg3Nn0.91VC1LGKPe8MOWNbg5KfWXR5jAHZIyh4d4HXP8uz9_4";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let students = {};
     let transactions = {};
-    let settings = { currentSemester: "2026-1학기", passwordHash: "" };
+    let settings = { currentSemester: "2026-1학기", passwordHash: "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" };
 
     async function hashPassword(str) {
       const buffer = new TextEncoder().encode(str);
@@ -248,13 +292,15 @@
     }
 
     async function loadData() {
-      const { data: stdData } = await supabaseClient.from('students').select('*');
+      const { data: stdData, error: stdErr } = await supabaseClient.from('students').select('*');
       if (stdData) {
         students = {};
         stdData.forEach(s => students[s.id] = s);
+      } else if (stdErr) {
+        console.error("Student load error:", stdErr);
       }
 
-      const { data: txData } = await supabaseClient.from('transactions').select('*');
+      const { data: txData, error: txErr } = await supabaseClient.from('transactions').select('*');
       if (txData) {
         transactions = {};
         txData.forEach(t => transactions[t.id] = {
@@ -262,10 +308,12 @@
           type: t.type, amount: t.amount, reason: t.reason,
           balanceAfter: t.balance_after, semester: t.semester, createdAt: t.created_at
         });
+      } else if (txErr) {
+        console.error("Tx load error:", txErr);
       }
 
       const { data: setDb } = await supabaseClient.from('settings').select('*').eq('key', 'config').single();
-      if (setDb) settings = setDb.value;
+      if (setDb && setDb.value) settings = setDb.value;
 
       renderStudents();
       renderCheckboxes();
@@ -320,20 +368,35 @@
       const nameInput = document.getElementById('new-name');
       const balInput = document.getElementById('new-balance');
 
-      const num = numInput.value.trim();
-      const name = nameInput.value.trim();
-      const bal = balInput.value !== "" ? parseInt(balInput.value) : 0;
+      const numVal = parseInt(numInput.value);
+      const nameVal = nameInput.value.trim();
+      const balVal = balInput.value !== "" ? parseInt(balInput.value) : 0;
 
-      if (!num || !name) return alert("번호와 이름을 모두 입력해 주세요.");
+      if (isNaN(numVal) || !nameVal) {
+        return alert("번호와 이름을 올바르게 입력해 주세요.");
+      }
 
       const newId = 'std_' + Date.now();
       const now = new Date().toISOString();
-      const studentObj = { id: newId, number: parseInt(num), name: name, balance: bal, active: true, created_at: now, updated_at: now };
+      const studentObj = { 
+        id: newId, 
+        number: numVal, 
+        name: nameVal, 
+        balance: balVal, 
+        active: true, 
+        created_at: now, 
+        updated_at: now 
+      };
 
-      await supabaseClient.from('students').insert([studentObj]);
-      await logTransaction(newId, name, "등록", bal, "신규 학생 등록", bal);
+      const { error } = await supabaseClient.from('students').insert([studentObj]);
+      if (error) {
+        alert("학생 추가 중 오류가 발생했습니다: " + error.message);
+        return;
+      }
 
+      await logTransaction(newId, nameVal, "등록", balVal, "신규 학생 등록", balVal);
       numInput.value = ''; nameInput.value = ''; balInput.value = '';
+      await loadData();
     }
 
     async function deleteStudent(id) {
@@ -342,12 +405,14 @@
         const name = students[id]?.name;
         await supabaseClient.from('students').delete().eq('id', id);
         await logTransaction(id, name, "삭제", 0, "학생 정보 삭제", 0);
+        await loadData();
       }
     }
 
     async function toggleStatus(id) {
       const target = students[id];
       await supabaseClient.from('students').update({ active: !target.active, updated_at: new Date().toISOString() }).eq('id', id);
+      await loadData();
     }
 
     function renderStudents() {
@@ -377,17 +442,22 @@
 
     function renderCheckboxes() {
       const activeStudents = Object.values(students).filter(s => s.active).sort((a,b) => a.number - b.number);
-      const targets = ['pay-student-list', 'use-student-list', 'deduct-student-list'];
+      const targets = [
+        { id: 'weekly-pay-student-list', cls: 'weekly-pay-chk' },
+        { id: 'bonus-pay-student-list', cls: 'bonus-pay-chk' },
+        { id: 'use-student-list', cls: 'use-chk' },
+        { id: 'deduct-student-list', cls: 'deduct-chk' }
+      ];
 
-      targets.forEach(targetId => {
-        const container = document.getElementById(targetId);
+      targets.forEach(target => {
+        const container = document.getElementById(target.id);
+        if (!container) return;
         container.innerHTML = '';
-        const chkClass = targetId.split('-')[0] + '-chk';
 
         activeStudents.forEach(s => {
           container.innerHTML += `
             <label class="flex items-center space-x-2 p-1.5 border rounded bg-white hover:bg-slate-50 text-xs cursor-pointer">
-              <input type="checkbox" value="${s.id}" class="${chkClass} rounded text-blue-600">
+              <input type="checkbox" value="${s.id}" class="${target.cls} rounded text-blue-600">
               <span>${s.number}번 ${s.name} (${s.balance}챔)</span>
             </label>
           `;
@@ -395,12 +465,14 @@
       });
 
       const sel = document.getElementById('filter-student');
-      const currentVal = sel.value;
-      sel.innerHTML = '<option value="ALL">전체 학생</option>';
-      Object.values(students).sort((a,b) => a.number - b.number).forEach(s => {
-        sel.innerHTML += `<option value="${s.id}">${s.number}번 ${s.name}</option>`;
-      });
-      sel.value = currentVal;
+      if (sel) {
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="ALL">전체 학생</option>';
+        Object.values(students).sort((a,b) => a.number - b.number).forEach(s => {
+          sel.innerHTML += `<option value="${s.id}">${s.number}번 ${s.name}</option>`;
+        });
+        sel.value = currentVal || 'ALL';
+      }
     }
 
     function toggleCheckGroup(className, status) {
@@ -410,31 +482,55 @@
     async function logTransaction(studentId, studentName, type, amount, reason, balanceAfter) {
       const txId = 'tx_' + Date.now() + '_' + Math.floor(Math.random()*1000);
       const txObj = {
-        id: txId, student_id: studentId, student_name: studentName,
-        type: type, amount: amount, reason: reason,
-        balance_after: balanceAfter, semester: settings.currentSemester,
+        id: txId, 
+        student_id: studentId, 
+        student_name: studentName,
+        type: type, 
+        amount: amount, 
+        reason: reason,
+        balance_after: balanceAfter, 
+        semester: settings.currentSemester,
         created_at: new Date().toLocaleString('ko-KR')
       };
       await supabaseClient.from('transactions').insert([txObj]);
     }
 
-    async function processMultiPay() {
-      const chks = document.querySelectorAll('.pay-chk:checked');
-      const type = document.getElementById('pay-type').value;
-      const amt = parseInt(document.getElementById('pay-amount').value);
-      const reason = document.getElementById('pay-reason').value;
+    async function processWeeklyPay() {
+      const chks = document.querySelectorAll('.weekly-pay-chk:checked');
+      const amt = parseInt(document.getElementById('weekly-pay-amount').value);
+      const reason = document.getElementById('weekly-pay-reason').value;
 
-      if (chks.length === 0) return alert("대상 학생을 선택하세요.");
-      if (!amt || !reason) return alert("금액과 사유를 모두 입력하세요.");
+      if (chks.length === 0) return alert("주급을 지급할 학생을 선택하세요.");
+      if (isNaN(amt) || !reason) return alert("주급 금액과 사유를 올바르게 입력하세요.");
       if (!await verifyPasswordPrompt()) return;
 
       for (let chk of chks) {
         const s = students[chk.value];
         const newBal = s.balance + amt;
         await supabaseClient.from('students').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', s.id);
-        await logTransaction(s.id, s.name, type, amt, reason, newBal);
+        await logTransaction(s.id, s.name, "주급", amt, reason, newBal);
       }
-      alert("지급 처리가 완료되었습니다.");
+      alert("주급 지급이 완료되었습니다.");
+      await loadData();
+    }
+
+    async function processBonusPay() {
+      const chks = document.querySelectorAll('.bonus-pay-chk:checked');
+      const amt = parseInt(document.getElementById('bonus-pay-amount').value);
+      const reason = document.getElementById('bonus-pay-reason').value;
+
+      if (chks.length === 0) return alert("보너스를 지급할 학생을 선택하세요.");
+      if (isNaN(amt) || !reason) return alert("보너스 금액과 사유를 올바르게 입력하세요.");
+      if (!await verifyPasswordPrompt()) return;
+
+      for (let chk of chks) {
+        const s = students[chk.value];
+        const newBal = s.balance + amt;
+        await supabaseClient.from('students').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', s.id);
+        await logTransaction(s.id, s.name, "보너스", amt, reason, newBal);
+      }
+      alert("보너스 지급이 완료되었습니다.");
+      await loadData();
     }
 
     async function processMultiUse() {
@@ -443,7 +539,7 @@
       const reason = document.getElementById('use-reason').value;
 
       if (chks.length === 0) return alert("대상 학생을 선택하세요.");
-      if (!amt || !reason) return alert("금액과 사유를 모두 입력하세요.");
+      if (isNaN(amt) || !reason) return alert("금액과 사유를 모두 입력하세요.");
       if (amt % 5 !== 0) return alert("사용 금액은 5 단위로만 입력 가능합니다.");
       if (!await verifyPasswordPrompt()) return;
 
@@ -455,6 +551,7 @@
         await logTransaction(s.id, s.name, "사용", -amt, reason, newBal);
       }
       alert("선택한 학생의 사용 처리가 완료되었습니다.");
+      await loadData();
     }
 
     async function processMultiDeduct() {
@@ -463,7 +560,7 @@
       const reason = document.getElementById('deduct-reason').value;
 
       if (chks.length === 0) return alert("대상 학생을 선택하세요.");
-      if (!amt || !reason) return alert("금액과 사유를 모두 입력하세요.");
+      if (isNaN(amt) || !reason) return alert("금액과 사유를 모두 입력하세요.");
       if (!await verifyPasswordPrompt()) return;
 
       for (let chk of chks) {
@@ -473,6 +570,7 @@
         await logTransaction(s.id, s.name, "차감", -amt, reason, newBal);
       }
       alert("선택한 학생의 금액 차감이 완료되었습니다.");
+      await loadData();
     }
 
     function openStudentModal(studentId) {
@@ -526,7 +624,7 @@
         const currentSem = semSel.value;
         semSel.innerHTML = '<option value="ALL">전체 학기</option>';
         semesters.forEach(s => semSel.innerHTML += `<option value="${s}">${s}</option>`);
-        semSel.value = currentSem;
+        semSel.value = currentSem || 'ALL';
       }
 
       if (filterStudent !== 'ALL') list = list.filter(t => t.studentId === filterStudent);
@@ -583,10 +681,10 @@
           const row = json[i];
           if (row && row.length >= 2) {
             const num = parseInt(row[0]);
-            const name = row[1];
+            const name = String(row[1]).trim();
             const bal = parseInt(row[2]) || 0;
 
-            if (num && name) {
+            if (!isNaN(num) && name) {
               const newId = 'std_' + Date.now() + '_' + i;
               const now = new Date().toISOString();
               uploadArray.push({ id: newId, number: num, name: name, balance: bal, active: true, created_at: now, updated_at: now });
@@ -596,8 +694,13 @@
         }
 
         if (uploadArray.length > 0) {
-          await supabaseClient.from('students').insert(uploadArray);
-          alert(`${uploadArray.length}명의 학생 등록을 완료했습니다.`);
+          const { error } = await supabaseClient.from('students').insert(uploadArray);
+          if (error) {
+            alert("엑셀 업로드 중 오류가 발생했습니다: " + error.message);
+          } else {
+            alert(`${uploadArray.length}명의 학생 등록을 완료했습니다.`);
+            await loadData();
+          }
         }
         fileInput.value = '';
       };
@@ -611,7 +714,7 @@
 
       if (confirm(`현재 모든 학생의 잔액을 0으로 초기화하고 '${newSem}' 학기를 시작하시겠습니까?`)) {
         settings.currentSemester = newSem;
-        await supabaseClient.from('settings').update({ value: settings }).eq('key', 'config');
+        await supabaseClient.from('settings').upsert({ key: 'config', value: settings });
 
         for (let s of Object.values(students)) {
           await logTransaction(s.id, s.name, "학기 초기화", -s.balance, `'${newSem}' 학기 초기화`, 0);
@@ -620,6 +723,7 @@
 
         document.getElementById('new-semester-name').value = '';
         alert("학기 초기화가 완료되었습니다.");
+        await loadData();
       }
     }
 
@@ -635,7 +739,7 @@
       if (newP !== conf) return alert("새 비밀번호 확인이 일치하지 않습니다.");
 
       settings.passwordHash = await hashPassword(newP);
-      await supabaseClient.from('settings').update({ value: settings }).eq('key', 'config');
+      await supabaseClient.from('settings').upsert({ key: 'config', value: settings });
 
       document.getElementById('pwd-curr').value = '';
       document.getElementById('pwd-new').value = '';
