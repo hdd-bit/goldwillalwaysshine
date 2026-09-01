@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>학급 화폐 관리 시스템</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (Excel 내보내기/가져오기 Library) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Supabase JS Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
     <div class="max-w-6xl mx-auto p-4 md:p-6">
+        <!-- 헤더 -->
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded-xl shadow-sm mb-6 border border-slate-200">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">학급 화폐 관리 시스템</h1>
@@ -20,6 +24,7 @@
             </div>
         </header>
 
+        <!-- 대시보드 요약 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                 <p class="text-xs text-slate-500">총 등록 학생</p>
@@ -39,6 +44,7 @@
             </div>
         </div>
 
+        <!-- 네비게이션 탭 -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-x-auto">
             <div class="flex border-b border-slate-200 min-w-max">
                 <button id="btn-tab-students" onclick="switchTab('tab-students')" class="tab-btn px-6 py-3 font-semibold text-sm border-b-2 text-blue-600 border-blue-600">학생 관리</button>
@@ -50,6 +56,7 @@
             </div>
         </div>
 
+        <!-- 탭 1: 학생 관리 -->
         <div id="tab-students" class="tab-content space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -88,12 +95,13 @@
                             </tr>
                         </thead>
                         <tbody id="student-list-tbody" class="divide-y divide-slate-100">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
+        <!-- 탭 2: 역할 관리 -->
         <div id="tab-roles" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-lg font-bold mb-4">신규 역할 추가</h2>
@@ -110,10 +118,11 @@
                     <h2 class="text-lg font-bold">역할 및 학생 배정 관리</h2>
                 </div>
                 <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-6" id="role-card-container">
-                    </div>
+                </div>
             </div>
         </div>
 
+        <!-- 탭 3: 화폐 사용 / 벌금 차감 -->
         <div id="tab-use" class="tab-content hidden grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
                 <div>
@@ -123,7 +132,7 @@
                         <button onclick="toggleAllCheckboxes('use-chk', false)" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200">전체 해제</button>
                     </div>
                     <div id="use-student-list" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border p-2 rounded mb-3">
-                        </div>
+                    </div>
                     <div class="space-y-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">금액 (입력: 1단위 가능 / 화살표: 5단위 조정)</label>
@@ -146,7 +155,7 @@
                         <button onclick="toggleAllCheckboxes('deduct-chk', false)" class="text-xs bg-slate-100 px-2 py-1 rounded hover:bg-slate-200">전체 해제</button>
                     </div>
                     <div id="deduct-student-list" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border p-2 rounded mb-3">
-                        </div>
+                    </div>
                     <div class="space-y-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1">차감 금액 (입력: 1단위 가능 / 화살표: 5단위 조정)</label>
@@ -162,6 +171,7 @@
             </div>
         </div>
 
+        <!-- 탭 4: 지급 -->
         <div id="tab-weekly" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-200 bg-blue-50/30">
                 <div class="flex justify-between items-center mb-3">
@@ -174,7 +184,7 @@
                     </button>
                 </div>
                 <div id="role-salary-summary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                    </div>
+                </div>
             </div>
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -185,7 +195,7 @@
                     <button onclick="selectAllActive('weekly-chk', false)" class="text-xs bg-slate-100 px-3 py-1 rounded hover:bg-slate-200 font-medium">전체 해제</button>
                 </div>
                 <div id="weekly-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 max-h-48 overflow-y-auto border p-3 rounded">
-                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200 items-end">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">지급 금액 (입력: 1단위 가능 / 화살표: 5단위 조정)</label>
@@ -207,7 +217,7 @@
                     <button onclick="selectAllActive('bonus-chk', false)" class="text-xs bg-slate-100 px-3 py-1 rounded hover:bg-slate-200 font-medium">전체 해제</button>
                 </div>
                 <div id="bonus-student-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 max-h-48 overflow-y-auto border p-3 rounded">
-                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-emerald-50/50 p-4 rounded-lg border border-emerald-100 items-end">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">보너스 금액 (입력: 1단위 가능 / 화살표: 5단위 조정)</label>
@@ -222,6 +232,7 @@
             </div>
         </div>
 
+        <!-- 탭 5: 거래 내역 -->
         <div id="tab-history" class="tab-content hidden space-y-4">
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3 items-center">
                 <select id="filter-student" onchange="renderHistory()" class="border p-2 rounded text-sm"></select>
@@ -244,12 +255,13 @@
                             </tr>
                         </thead>
                         <tbody id="history-tbody" class="divide-y divide-slate-100">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
+        <!-- 탭 6: 설정 및 데이터 백업 -->
         <div id="tab-settings" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-lg font-bold mb-4">데이터 엑셀 백업 & 불러오기</h2>
@@ -283,29 +295,25 @@
     </div>
 
     <script>
-        // Supabase 클라우드 동기화 설정
         const SUPABASE_URL = "https://oxlmwkvbgxszuhguwxif.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bG13a3ZiZ3hzenVoZ3V3eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjQ4NzYsImV4cCI6MjEwMzg0MDg3Nn0.91VC1LGKPe8MOWNbg5KfWXR5jAHZIyh4d4HXP8uz9_4";
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Data Storage
         let students = {};
         let roles = {};
         let transactions = {};
         let settings = { currentSemester: "2026-1학기", passwordHash: "" };
 
-        // SHA-256 암호화
         async function hashPassword(str) {
             const buffer = new TextEncoder().encode(str);
             const hash = await crypto.subtle.digest('SHA-256', buffer);
             return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // 데이터 로드
         async function loadStorage() {
             try {
-                // 1. 학생 데이터
-                const { data: stdData } = await _supabase.from('students').select('*');
+                const { data: stdData, error: e1 } = await _supabase.from('students').select('*');
+                if (e1) console.error("학생 데이터 로드 실패:", e1);
                 if (stdData) {
                     students = {};
                     stdData.forEach(s => {
@@ -322,8 +330,8 @@
                     });
                 }
 
-                // 2. 역할 데이터
-                const { data: roleData } = await _supabase.from('roles').select('*');
+                const { data: roleData, error: e2 } = await _supabase.from('roles').select('*');
+                if (e2) console.error("역할 데이터 로드 실패:", e2);
                 if (roleData) {
                     roles = {};
                     roleData.forEach(r => {
@@ -336,8 +344,8 @@
                     });
                 }
 
-                // 3. 거래 데이터
-                const { data: txData } = await _supabase.from('transactions').select('*');
+                const { data: txData, error: e3 } = await _supabase.from('transactions').select('*');
+                if (e3) console.error("거래 내역 로드 실패:", e3);
                 if (txData) {
                     transactions = {};
                     txData.forEach(t => {
@@ -355,20 +363,18 @@
                     });
                 }
 
-                // 4. 설정 데이터
-                const { data: setDb } = await _supabase.from('settings').select('*').eq('id', 'default').single();
+                const { data: setDb, error: e4 } = await _supabase.from('settings').select('*').eq('id', 'default').single();
                 if (setDb) {
                     settings.currentSemester = setDb.current_semester || "2026-1학기";
                     settings.passwordHash = setDb.password_hash || "";
                 }
             } catch (err) {
-                console.error("Supabase 로드 오류:", err);
+                console.error("Supabase 초기 로드 에러:", err);
             }
         }
 
-        // Supabase DB 클라우드 동기화
         async function syncStudentToCloud(studentObj) {
-            await _supabase.from('students').upsert({
+            const { error } = await _supabase.from('students').upsert({
                 id: studentObj.id,
                 number: studentObj.number,
                 name: studentObj.name,
@@ -378,27 +384,31 @@
                 created_at: studentObj.createdAt,
                 updated_at: studentObj.updatedAt
             });
+            if (error) console.error("학생 저장 실패:", error);
         }
 
         async function syncStudentDeleteToCloud(studentId) {
-            await _supabase.from('students').delete().eq('id', studentId);
+            const { error } = await _supabase.from('students').delete().eq('id', studentId);
+            if (error) console.error("학생 삭제 실패:", error);
         }
 
         async function syncRoleToCloud(roleObj) {
-            await _supabase.from('roles').upsert({
+            const { error } = await _supabase.from('roles').upsert({
                 id: roleObj.id,
                 title: roleObj.title,
                 salary: roleObj.salary,
                 description: roleObj.description
             });
+            if (error) console.error("역할 저장 실패:", error);
         }
 
         async function syncRoleDeleteToCloud(roleId) {
-            await _supabase.from('roles').delete().eq('id', roleId);
+            const { error } = await _supabase.from('roles').delete().eq('id', roleId);
+            if (error) console.error("역할 삭제 실패:", error);
         }
 
         async function syncTxToCloud(txObj) {
-            await _supabase.from('transactions').upsert({
+            const { error } = await _supabase.from('transactions').upsert({
                 id: txObj.id,
                 student_id: txObj.studentId,
                 student_name: txObj.studentName,
@@ -409,17 +419,18 @@
                 semester: txObj.semester,
                 created_at: txObj.createdAt
             });
+            if (error) console.error("거래내역 저장 실패:", error);
         }
 
         async function syncSettingsToCloud() {
-            await _supabase.from('settings').upsert({
+            const { error } = await _supabase.from('settings').upsert({
                 id: 'default',
                 current_semester: settings.currentSemester,
                 password_hash: settings.passwordHash
             });
+            if (error) console.error("설정 저장 실패:", error);
         }
 
-        // Realtime 구독
         function setupRealtime() {
             _supabase.channel('public-db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -434,7 +445,6 @@
                 .subscribe();
         }
 
-        // 초기화
         window.addEventListener('DOMContentLoaded', async () => {
             await loadStorage();
             if (!settings.passwordHash) {
@@ -449,7 +459,6 @@
             setupRealtime();
         });
 
-        // 비밀번호 확인
         async function verifyPasswordPrompt() {
             const input = prompt("작업 비밀번호를 입력하세요:");
             if (!input) return false;
@@ -462,7 +471,6 @@
             }
         }
 
-        // 탭 전환
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => {
@@ -477,7 +485,6 @@
             }
         }
 
-        // 대시보드 업데이트
         function updateDashboard() {
             const list = Object.values(students);
             const totalCham = list.reduce((acc, cur) => acc + (cur.balance || 0), 0);
@@ -489,7 +496,6 @@
             document.getElementById('stat-total-tx').innerText = `${totalTx}건`;
         }
 
-        // --- 학생 관리 ---
         async function addStudent() {
             const numInput = document.getElementById('new-num');
             const nameInput = document.getElementById('new-name');
@@ -621,7 +627,6 @@
             });
         }
 
-        // --- 역할 관리 ---
         async function addRole() {
             const titleInput = document.getElementById('role-title');
             const salaryInput = document.getElementById('role-salary');
@@ -647,7 +652,6 @@
             if (confirm("이 역할을 삭제하시겠습니까? 해당 역할에 지정된 학생들의 역할이 해제됩니다.")) {
                 delete roles[roleId];
                 await syncRoleDeleteToCloud(roleId);
-                // 해당 역할 해제
                 for (let s of Object.values(students)) {
                     if (s.roleId === roleId) {
                         s.roleId = null;
@@ -732,7 +736,6 @@
             });
         }
 
-        // --- UI 랜더링 공통 ---
         function renderCheckboxList(containerId, chkClass) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -772,8 +775,6 @@
             renderCheckboxList('deduct-student-list', 'deduct-chk');
             renderCheckboxList('weekly-student-list', 'weekly-chk');
             renderCheckboxList('bonus-student-list', 'bonus-chk');
-            
-            // 역할별 주급 현황 미리보기 요약
             renderRoleSalarySummary();
         }
 
@@ -800,7 +801,6 @@
             });
         }
 
-        // 내역 기록
         async function logTransaction(studentId, studentName, type, amount, reason, balanceAfter) {
             const txId = 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
             const txObj = {
@@ -812,7 +812,7 @@
                 reason: reason,
                 balanceAfter: balanceAfter,
                 semester: settings.currentSemester,
-                createdAt: new Date().toLocaleString('ko-KR')
+                createdAt: new Date().toISOString()
             };
             transactions[txId] = txObj;
             await syncTxToCloud(txObj);
@@ -820,7 +820,6 @@
             updateDashboard();
         }
 
-        // 화폐 사용 승인
         async function processUse() {
             const chks = document.querySelectorAll('.use-chk:checked');
             const amt = parseInt(document.getElementById('use-amount').value);
@@ -852,7 +851,6 @@
             alert("사용 승인 처리가 완료되었습니다.");
         }
 
-        // 벌금 차감
         async function processDeduct() {
             const chks = document.querySelectorAll('.deduct-chk:checked');
             const amt = parseInt(document.getElementById('deduct-amount').value);
@@ -884,7 +882,6 @@
             alert("차감 처리가 완료되었습니다.");
         }
 
-        // ⚡ [역할별 지급] 일괄 주급 지급 실행
         async function processRoleBasedSalary() {
             const activeStudents = Object.values(students).filter(s => s.active && s.roleId && roles[s.roleId]);
             if (activeStudents.length === 0) return alert("역할이 배정된 활성 학생이 없습니다.");
@@ -909,7 +906,6 @@
             alert(`총 ${successCount}명의 학생에게 역할별 기본 주급이 성공적으로 지급되었습니다!`);
         }
 
-        // 주급 지급 (수동 선택 - 사유 생략 가능)
         async function processManualWeeklyPay() {
             const chks = document.querySelectorAll('.weekly-chk:checked');
             const amt = parseInt(document.getElementById('weekly-manual-amount').value);
@@ -917,7 +913,7 @@
 
             if (chks.length === 0) return alert("지급할 학생을 선택하세요.");
             if (!amt || amt <= 0) return alert("올바른 주급 금액을 입력하세요.");
-            if (!reason) reason = "주급 지급"; // 미입력 시 기본 사유
+            if (!reason) reason = "주급 지급";
 
             if (!await verifyPasswordPrompt()) return;
 
@@ -936,7 +932,6 @@
             alert(`${chks.length}명의 학생에게 주급 지급이 완료되었습니다.`);
         }
 
-        // 보너스 지급 (사유 필수)
         async function processBonusPay() {
             const chks = document.querySelectorAll('.bonus-chk:checked');
             const amt = parseInt(document.getElementById('bonus-amount').value);
@@ -963,7 +958,6 @@
             alert(`${chks.length}명의 학생에게 보너스 지급이 완료되었습니다.`);
         }
 
-        // 거래 내역 랜더링
         function renderHistory() {
             const tbody = document.getElementById('history-tbody');
             tbody.innerHTML = '';
@@ -994,9 +988,10 @@
                 tr.className = "hover:bg-slate-50";
                 const amtColor = t.amount > 0 ? "text-green-600 font-bold" : (t.amount < 0 ? "text-red-600 font-bold" : "text-slate-500");
                 const amtSign = t.amount > 0 ? `+${t.amount}` : t.amount;
+                const formattedDate = t.createdAt ? new Date(t.createdAt).toLocaleString('ko-KR') : '-';
 
                 tr.innerHTML = `
-                    <td class="p-3 text-xs text-slate-400">${t.createdAt}</td>
+                    <td class="p-3 text-xs text-slate-400">${formattedDate}</td>
                     <td class="p-3 text-xs">${t.semester || '-'}</td>
                     <td class="p-3 font-medium">${t.studentName}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${t.type}</span></td>
@@ -1008,7 +1003,6 @@
             });
         }
 
-        // 엑셀 내보내기
         function exportToExcel() {
             const studentData = Object.values(students).map(s => ({
                 번호: s.number, 이름: s.name, 역할: s.roleId && roles[s.roleId] ? roles[s.roleId].title : "-", 잔액: s.balance, 상태: s.active ? "활성" : "비활성", 생성일: s.createdAt
