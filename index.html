@@ -3,407 +3,717 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>학급 학급화폐 및 동아리 통합 관리 시스템</title>
-  
-  <!-- 1. Supabase SDK (최상단 로드) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Tailwind CSS & SheetJS -->
+  <title>학급 화폐 관리 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
-
-  <div id="app" class="p-4 md:p-8 max-w-7xl mx-auto">
-    <!-- 헤더 -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+<body class="bg-gray-100 min-h-screen font-sans">
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white p-6 rounded-t-2xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900">🏦 학급 학급화폐 관리 시스템</h1>
-          <span id="db-status" class="text-xs px-3 py-1 rounded-full font-semibold bg-yellow-100 text-yellow-800">
-            연결 확인 중...
-          </span>
-        </div>
-        <p class="text-sm text-slate-500 mt-1">학생들의 직업, 잔액, 거래 내역을 실시간 관리합니다.</p>
+        <h1 class="text-2xl font-bold">💰 학급 화폐 관리 시스템</h1>
+        <p class="text-indigo-200 text-sm mt-1">Supabase 실시간 클라우드 동기화 & 엑셀 백업 지원</p>
       </div>
-      <div class="flex items-center gap-2 w-full md:w-auto">
-        <button onclick="fetchData()" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm">
-          🔄 데이터 새로고침
-        </button>
+      <div id="syncStatus" class="bg-indigo-700 px-4 py-2 rounded-lg text-xs flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block animate-pulse"></span>
+        <span>Supabase 연결 대기 중</span>
       </div>
     </header>
 
-    <!-- 탭 메뉴 -->
-    <div class="flex border-b border-slate-200 mb-6 gap-2">
-      <button onclick="switchTab('students')" id="tab-btn-students" class="tab-btn px-5 py-2.5 font-bold text-sm border-b-2 border-indigo-600 text-indigo-600 transition">
-        👨‍🎓 학생 및 화폐 관리
-      </button>
-      <button onclick="switchTab('roles')" id="tab-btn-roles" class="tab-btn px-5 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition">
-        💼 직업 관리
-      </button>
-      <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-5 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition">
-        📜 거래 및 활동 내역
-      </button>
-    </div>
+    <!-- Navigation Tabs -->
+    <nav class="bg-white border-b flex overflow-x-auto shadow-sm">
+      <button onclick="switchTab('students')" class="tab-btn active px-5 py-3 font-semibold text-indigo-600 border-b-2 border-indigo-600 hover:bg-gray-50 whitespace-nowrap">👨‍🎓 학생 관리</button>
+      <button onclick="switchTab('roles')" class="tab-btn px-5 py-3 font-semibold text-gray-500 border-b-2 border-transparent hover:bg-gray-50 whitespace-nowrap">💼 역할 관리</button>
+      <button onclick="switchTab('deduct')" class="tab-btn px-5 py-3 font-semibold text-gray-500 border-b-2 border-transparent hover:bg-gray-50 whitespace-nowrap">💸 사용 / 벌금 차감</button>
+      <button onclick="switchTab('pay')" class="tab-btn px-5 py-3 font-semibold text-gray-500 border-b-2 border-transparent hover:bg-gray-50 whitespace-nowrap">🎁 주급 / 보너스 지급</button>
+      <button onclick="switchTab('history')" class="tab-btn px-5 py-3 font-semibold text-gray-500 border-b-2 border-transparent hover:bg-gray-50 whitespace-nowrap">📜 거래 내역</button>
+      <button onclick="switchTab('settings')" class="tab-btn px-5 py-3 font-semibold text-gray-500 border-b-2 border-transparent hover:bg-gray-50 whitespace-nowrap">⚙️ 설정 / 관리</button>
+    </nav>
 
-    <!-- 탭 1: 학생 및 화폐 관리 -->
-    <div id="tab-students" class="tab-content space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 학생 목록 -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-bold text-slate-800">학생 명단 (<span id="student-count">0</span>명)</h2>
-            <button onclick="exportToExcel()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-3 py-1.5 rounded-lg border border-emerald-200 transition">
-              📥 엑셀 내보내기
-            </button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase font-semibold">
-                  <th class="p-3">번호</th>
-                  <th class="p-3">이름</th>
-                  <th class="p-3">직업</th>
-                  <th class="p-3">현재 잔액</th>
-                  <th class="p-3 text-right">관리</th>
-                </tr>
-              </thead>
-              <tbody id="student-list" class="divide-y divide-slate-100 text-sm">
-                <tr><td colspan="5" class="p-6 text-center text-slate-400">데이터를 불러오는 중입니다...</td></tr>
-              </tbody>
-            </table>
+    <main class="bg-white p-6 rounded-b-2xl shadow-md min-h-[500px]">
+
+      <!-- TAB 1: 학생 관리 -->
+      <section id="tab-students" class="tab-content active space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <h2 class="text-xl font-bold text-gray-800">학생 목록 및 잔액 현황</h2>
+          <div class="flex gap-2 w-full md:w-auto">
+            <input type="text" id="studentSearch" oninput="renderStudents()" placeholder="학생 이름 검색..." class="px-4 py-2 border rounded-lg w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button onclick="addStudentPrompt()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 whitespace-nowrap">+ 학생 추가</button>
           </div>
         </div>
 
-        <!-- 화폐 관리 & 학생 추가 -->
-        <div class="space-y-6">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 class="text-lg font-bold text-slate-800 mb-4">💰 화폐 지급 및 차감</h2>
-            <form id="tx-form" onsubmit="handleTransaction(event)" class="space-y-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">지급 대상</label>
-                <select id="tx-target" class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white transition">
-                  <option value="ALL">전체 학생</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">금액 (+지급 / -차감)</label>
-                <input type="number" id="tx-amount" placeholder="예: 1000 또는 -500" required class="w-full p-2.5 border rounded-xl text-sm focus:bg-white transition">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">사유</label>
-                <input type="text" id="tx-reason" placeholder="예: 주간 직업 월급" required class="w-full p-2.5 border rounded-xl text-sm focus:bg-white transition">
-              </div>
-              <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl text-sm font-semibold transition">
-                학급화폐 적용
-              </button>
-            </form>
+        <div class="overflow-x-auto border rounded-lg">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gray-50 border-b text-gray-600 text-sm">
+                <th class="p-3">번호</th>
+                <th class="p-3">이름</th>
+                <th class="p-3">담당 역할</th>
+                <th class="p-3">현재 잔액</th>
+                <th class="p-3 text-center">상세 보기</th>
+                <th class="p-3 text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody" class="divide-y text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 2: 역할 관리 -->
+      <section id="tab-roles" class="tab-content space-y-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-gray-800">학급 1인 1역할 및 주급 설정</h2>
+          <button onclick="addRolePrompt()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">+ 역할 추가</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="roleCardsContainer"></div>
+      </section>
+
+      <!-- TAB 3: 사용 / 벌금 차감 -->
+      <section id="tab-deduct" class="tab-content space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">화폐 사용 및 벌금 차감 (다중 선택 가능)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2 border rounded-lg p-4 bg-gray-50 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+              <span class="font-bold text-gray-700">대상 학생 선택</span>
+              <label class="text-sm cursor-pointer text-indigo-600 font-semibold">
+                <input type="checkbox" id="selectAllDeduct" onchange="toggleSelectAll('deduct', this.checked)"> 전체 선택
+              </label>
+            </div>
+            <div id="deductStudentGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1"></div>
           </div>
 
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 class="text-lg font-bold text-slate-800 mb-4">➕ 학생 등록</h2>
-            <form onsubmit="handleAddStudent(event)" class="space-y-3">
-              <div class="grid grid-cols-2 gap-2">
-                <input type="number" id="new-std-num" placeholder="번호" required class="p-2.5 border rounded-xl text-sm">
-                <input type="text" id="new-std-name" placeholder="이름" required class="p-2.5 border rounded-xl text-sm">
-              </div>
-              <button type="submit" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2.5 rounded-xl text-sm transition">
-                등록하기
-              </button>
-            </form>
+          <div class="border rounded-lg p-5 space-y-4 bg-white shadow-sm">
+            <h3 class="font-bold text-lg text-gray-800 border-b pb-2">차감 상세 정보</h3>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">차감 금액</label>
+              <input type="number" id="deductAmount" placeholder="예: 500" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">차감 사유 (사용처 / 벌금 사유)</label>
+              <input type="text" id="deductReason" placeholder="예: 과제 미제출, 학급쿠폰 구매" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none">
+            </div>
+            <button onclick="processDeduction()" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition">선택 학생 금액 차감하기</button>
           </div>
         </div>
+      </section>
+
+      <!-- TAB 4: 주급 / 보너스 지급 -->
+      <section id="tab-pay" class="tab-content space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">주급 일괄 지급 및 보너스 수여</h2>
+        <div class="flex gap-3 border-b pb-4">
+          <button onclick="payWeeklySalaries()" class="bg-green-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-green-700 shadow-sm">💼 역할별 주급 일괄 지급</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2 border rounded-lg p-4 bg-gray-50 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+              <span class="font-bold text-gray-700">보너스 대상 학생 선택</span>
+              <label class="text-sm cursor-pointer text-green-600 font-semibold">
+                <input type="checkbox" id="selectAllPay" onchange="toggleSelectAll('pay', this.checked)"> 전체 선택
+              </label>
+            </div>
+            <div id="payStudentGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1"></div>
+          </div>
+
+          <div class="border rounded-lg p-5 space-y-4 bg-white shadow-sm">
+            <h3 class="font-bold text-lg text-gray-800 border-b pb-2">보너스 지급 정보</h3>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">지급 금액</label>
+              <input type="number" id="payAmount" placeholder="예: 1000" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">지급 사유</label>
+              <input type="text" id="payReason" placeholder="예: 학급 활동 우수, 발표왕" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            </div>
+            <button onclick="processBonusPay()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">선택 학생 보너스 지급하기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: 거래 내역 -->
+      <section id="tab-history" class="tab-content space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <h2 class="text-xl font-bold text-gray-800">전체 거래 및 변동 내역</h2>
+          <input type="text" id="historySearch" oninput="renderHistory()" placeholder="학생 이름 또는 사유 검색..." class="px-4 py-2 border rounded-lg w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="overflow-x-auto border rounded-lg max-h-[500px] overflow-y-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="sticky top-0 bg-gray-100 text-gray-700 text-sm">
+              <tr>
+                <th class="p-3">일시</th>
+                <th class="p-3">학생</th>
+                <th class="p-3">구분</th>
+                <th class="p-3">금액</th>
+                <th class="p-3">변동 사유</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 6: 설정 / 관리 -->
+      <section id="tab-settings" class="tab-content space-y-6">
+        <h2 class="text-xl font-bold text-gray-800">시스템 설정 및 백업 관리</h2>
+
+        <!-- Supabase API 설정 -->
+        <div class="border rounded-xl p-5 bg-gray-50 space-y-4">
+          <h3 class="font-bold text-md text-gray-800 border-b pb-2">☁️ Supabase 연동 설정</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Supabase Project URL</label>
+              <input type="text" id="supabaseUrl" placeholder="https://xyz.supabase.co" class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Supabase anon Key</label>
+              <input type="password" id="supabaseKey" placeholder="eyJhbGciOi..." class="w-full px-3 py-2 border rounded-lg text-sm">
+            </div>
+          </div>
+          <button onclick="saveSupabaseSettings()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">Supabase 연결 저장</button>
+        </div>
+
+        <!-- 보안 관리자 비밀번호 -->
+        <div class="border rounded-xl p-5 bg-gray-50 space-y-4">
+          <h3 class="font-bold text-md text-gray-800 border-b pb-2">🔒 관리자 암호 설정 (SHA-256)</h3>
+          <div class="flex gap-3">
+            <input type="password" id="adminPasswordInput" placeholder="새 관리자 비밀번호 입력" class="px-3 py-2 border rounded-lg text-sm flex-1">
+            <button onclick="updateAdminPassword()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-900">비밀번호 변경</button>
+          </div>
+        </div>
+
+        <!-- 백업 / 초기화 -->
+        <div class="border rounded-xl p-5 bg-gray-50 space-y-4">
+          <h3 class="font-bold text-md text-gray-800 border-b pb-2">📊 데이터 백업 & 학기 초기화</h3>
+          <div class="flex flex-wrap gap-3">
+            <button onclick="exportToExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700">📥 엑셀 백업 다운로드</button>
+            <label class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 cursor-pointer">
+              📤 엑셀 데이터 불러오기
+              <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="importFromExcel(event)" class="hidden">
+            </label>
+            <button onclick="resetSemester()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 ml-auto">⚠️ 새 학기 잔액/내역 초기화</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Student History Modal -->
+  <div id="studentModal" class="fixed inset-0 bg-black/50 hidden justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modalStudentName" class="text-xl font-bold text-gray-800"></h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
       </div>
-    </div>
-
-    <!-- 탭 2: 직업 관리 -->
-    <div id="tab-roles" class="tab-content hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h2 class="text-lg font-bold text-slate-800 mb-4">💼 학급 직업 목록</h2>
-          <div id="role-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
-        </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h2 class="text-lg font-bold text-slate-800 mb-4">➕ 새 직업 추가</h2>
-          <form onsubmit="handleAddRole(event)" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">직업명</label>
-              <input type="text" id="role-title" placeholder="예: 청소 담당" required class="w-full p-2.5 border rounded-xl text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">주급/월급</label>
-              <input type="number" id="role-salary" placeholder="예: 500" required class="w-full p-2.5 border rounded-xl text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">역할 설명</label>
-              <textarea id="role-desc" placeholder="직업 세부 내용" class="w-full p-2.5 border rounded-xl text-sm h-20"></textarea>
-            </div>
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition">
-              직업 등록
-            </button>
-          </form>
-        </div>
+      <div class="space-y-2">
+        <p class="text-sm text-gray-600">현재 잔액: <span id="modalStudentBalance" class="font-bold text-indigo-600"></span>원</p>
+        <p class="text-sm text-gray-600">담당 역할: <span id="modalStudentRole" class="font-semibold text-gray-800"></span></p>
       </div>
-    </div>
-
-    <!-- 탭 3: 거래 내역 -->
-    <div id="tab-history" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h2 class="text-lg font-bold text-slate-800 mb-4">📜 거래 및 입출금 로그</h2>
-        <div id="history-list" class="space-y-3"></div>
+      <div class="max-h-60 overflow-y-auto border rounded-lg">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead class="bg-gray-100 sticky top-0">
+            <tr>
+              <th class="p-2">일시</th>
+              <th class="p-2">구분</th>
+              <th class="p-2">금액</th>
+              <th class="p-2">사유</th>
+            </tr>
+          </thead>
+          <tbody id="modalHistoryBody" class="divide-y"></tbody>
+        </table>
+      </div>
+      <div class="text-right">
+        <button onclick="closeModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">닫기</button>
       </div>
     </div>
   </div>
 
+  <!-- JavaScript Logic -->
   <script>
-    // Supabase 주소 및 키 연동
-    const SUPABASE_URL = 'https://oxlmwkvbgxszuhguwxif.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94bG13a3ZiZ3hzenVoZ3V3eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjQ4NzYsImV4cCI6MjEwMzg0MDg3Nn0.91VC1LGKPe8MOWNbg5KfWXR5jAHZIyh4d4HXP8uz9_4';
+    // State Data
+    let state = {
+      students: [
+        { id: 1, name: "김철수", role: "주번", balance: 12000 },
+        { id: 2, name: "이영희", role: "환경 도우미", balance: 15000 },
+        { id: 3, name: "박민수", role: "정보 도우미", balance: 9000 }
+      ],
+      roles: [
+        { id: 1, name: "주번", salary: 3000 },
+        { id: 2, name: "환경 도우미", salary: 2500 },
+        { id: 3, name: "정보 도우미", salary: 3000 }
+      ],
+      logs: [
+        { id: 1, date: "2026-09-01 09:00", studentName: "김철수", type: "지급", amount: 3000, reason: "주급 지급" },
+        { id: 2, date: "2026-09-01 10:30", studentName: "이영희", type: "차감", amount: 500, reason: "학급 규칙 미준수" }
+      ],
+      settings: {
+        supabaseUrl: "",
+        supabaseKey: "",
+        adminPasswordHash: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918" // default: admin
+      }
+    };
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let supabaseClient = null;
 
-    let state = { students: [], roles: [], transactions: [] };
+    // Local Storage Persistence & Initial Setup
+    window.addEventListener('DOMContentLoaded', () => {
+      loadLocalStorage();
+      initSupabase();
+      renderAll();
+    });
 
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.tab-btn').forEach(el => {
-        el.classList.remove('border-indigo-600', 'text-indigo-600');
-        el.classList.add('border-transparent', 'text-slate-500');
-      });
-
-      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-      activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
-      activeBtn.classList.remove('border-transparent', 'text-slate-500');
+    function saveLocalStorage() {
+      localStorage.setItem('class_currency_state', JSON.stringify(state));
     }
 
-    async function fetchData() {
-      const statusEl = document.getElementById('db-status');
-      try {
-        const [stdRes, roleRes, txRes] = await Promise.all([
-          supabase.from('students').select('*').order('number', { ascending: true }),
-          supabase.from('roles').select('*'),
-          supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(30)
-        ]);
-
-        if (stdRes.error) throw stdRes.error;
-        if (roleRes.error) throw roleRes.error;
-        if (txRes.error) throw txRes.error;
-
-        state.students = stdRes.data || [];
-        state.roles = roleRes.data || [];
-        state.transactions = txRes.data || [];
-
-        renderAll();
-        statusEl.className = "text-xs px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-800";
-        statusEl.innerText = "DB 연결 완료";
-      } catch (err) {
-        console.error(err);
-        statusEl.className = "text-xs px-3 py-1 rounded-full font-semibold bg-rose-100 text-rose-800";
-        statusEl.innerText = "연결 오류";
+    function loadLocalStorage() {
+      const saved = localStorage.getItem('class_currency_state');
+      if (saved) {
+        try {
+          state = JSON.parse(saved);
+          document.getElementById('supabaseUrl').value = state.settings.supabaseUrl || '';
+          document.getElementById('supabaseKey').value = state.settings.supabaseKey || '';
+        } catch(e) { console.error(e); }
       }
     }
 
+    // SHA-256 Utility
+    async function hashSHA256(text) {
+      const msgUint8 = new TextEncoder().encode(text);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function verifyPassword() {
+      const input = prompt("관리자 비밀번호를 입력하세요:");
+      if (!input) return false;
+      const hashed = await hashSHA256(input);
+      if (hashed === state.settings.adminPasswordHash) return true;
+      alert("비밀번호가 일치하지 않습니다.");
+      return false;
+    }
+
+    // Supabase Connection
+    function initSupabase() {
+      const statusEl = document.getElementById('syncStatus');
+      const url = state.settings.supabaseUrl;
+      const key = state.settings.supabaseKey;
+
+      if (url && key && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(url, key);
+          statusEl.className = "bg-green-700 px-4 py-2 rounded-lg text-xs flex items-center gap-2";
+          statusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span><span>Supabase 실시간 연동됨</span>`;
+          fetchFromSupabase();
+        } catch (e) {
+          statusEl.className = "bg-red-700 px-4 py-2 rounded-lg text-xs flex items-center gap-2";
+          statusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span><span>연동 실패</span>`;
+        }
+      } else {
+        statusEl.className = "bg-yellow-700 px-4 py-2 rounded-lg text-xs flex items-center gap-2";
+        statusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span><span>로컬 저장소 전용 (설정 필요)</span>`;
+      }
+    }
+
+    async function saveSupabaseSettings() {
+      state.settings.supabaseUrl = document.getElementById('supabaseUrl').value.trim();
+      state.settings.supabaseKey = document.getElementById('supabaseKey').value.trim();
+      saveLocalStorage();
+      initSupabase();
+      alert("Supabase 설정이 저장되었습니다.");
+    }
+
+    async function fetchFromSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const { data: stData } = await supabaseClient.from('students').select('*');
+        if (stData && stData.length > 0) state.students = stData;
+        const { data: rlData } = await supabaseClient.from('roles').select('*');
+        if (rlData && rlData.length > 0) state.roles = rlData;
+        const { data: lgData } = await supabaseClient.from('logs').select('*');
+        if (lgData && lgData.length > 0) state.logs = lgData;
+        renderAll();
+      } catch (e) {
+        console.warn("Supabase fetch fallback:", e);
+      }
+    }
+
+    async function syncCloud() {
+      saveLocalStorage();
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('students').upsert(state.students);
+        await supabaseClient.from('roles').upsert(state.roles);
+        await supabaseClient.from('logs').upsert(state.logs);
+      } catch (e) {
+        console.error("Supabase sync error:", e);
+      }
+    }
+
+    // Navigation Tab Switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-indigo-600', 'border-indigo-600');
+        btn.classList.add('text-gray-500', 'border-transparent');
+      });
+
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+      event.currentTarget.classList.remove('text-gray-500', 'border-transparent');
+      event.currentTarget.classList.add('text-indigo-600', 'border-indigo-600');
+    }
+
+    // UI Renders
     function renderAll() {
       renderStudents();
       renderRoles();
+      renderSelectionGrids();
       renderHistory();
     }
 
     function renderStudents() {
-      const listEl = document.getElementById('student-list');
-      const selectEl = document.getElementById('tx-target');
-      document.getElementById('student-count').innerText = state.students.length;
+      const q = document.getElementById('studentSearch')?.value.toLowerCase() || '';
+      const tbody = document.getElementById('studentTableBody');
+      tbody.innerHTML = '';
 
-      selectEl.innerHTML = `<option value="ALL">전체 학생 (${state.students.length}명)</option>`;
-
-      if (state.students.length === 0) {
-        listEl.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">등록된 학생이 없습니다.</td></tr>`;
-        return;
-      }
-
-      listEl.innerHTML = state.students.map(s => {
-        const role = state.roles.find(r => r.id === s.role_id);
-        selectEl.innerHTML += `<option value="${s.id}">${s.number}번 ${s.name}</option>`;
-
-        return `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-semibold text-slate-600">${s.number}번</td>
-            <td class="p-3 font-bold text-slate-800">${s.name}</td>
-            <td class="p-3">
-              <span class="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 font-medium">
-                ${role ? role.title : '직업 없음'}
-              </span>
-            </td>
-            <td class="p-3 font-bold ${s.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}">
-              ${s.balance ? s.balance.toLocaleString() : 0} 원
-            </td>
-            <td class="p-3 text-right">
-              <button onclick="deleteStudent('${s.id}')" class="text-xs text-rose-500 hover:text-rose-700 font-medium transition">삭제</button>
-            </td>
-          </tr>
+      state.students.filter(s => s.name.toLowerCase().includes(q)).forEach((s, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50";
+        tr.innerHTML = `
+          <td class="p-3 text-gray-500">${idx + 1}</td>
+          <td class="p-3 font-semibold text-gray-800 hover:text-indigo-600 cursor-pointer" onclick="openStudentModal(${s.id})">${s.name}</td>
+          <td class="p-3"><span class="bg-indigo-100 text-indigo-800 text-xs px-2.5 py-1 rounded-full font-medium">${s.role || '없음'}</span></td>
+          <td class="p-3 font-bold ${s.balance < 0 ? 'text-red-600' : 'text-indigo-600'}">${s.balance.toLocaleString()} 원</td>
+          <td class="p-3 text-center">
+            <button onclick="openStudentModal(${s.id})" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-md">📋 내역</button>
+          </td>
+          <td class="p-3 text-center space-x-1">
+            <button onclick="editStudentRole(${s.id})" class="text-xs text-blue-600 hover:underline">역할변경</button>
+            <button onclick="deleteStudent(${s.id})" class="text-xs text-red-500 hover:underline">삭제</button>
+          </td>
         `;
-      }).join('');
+        tbody.appendChild(tr);
+      });
     }
 
     function renderRoles() {
-      const roleEl = document.getElementById('role-list');
-      if (state.roles.length === 0) {
-        roleEl.innerHTML = `<p class="text-slate-400 text-sm">등록된 직업이 없습니다.</p>`;
-        return;
-      }
-
-      roleEl.innerHTML = state.roles.map(r => `
-        <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-start">
-          <div>
-            <h3 class="font-bold text-slate-800">${r.title}</h3>
-            <p class="text-xs text-indigo-600 font-semibold mt-0.5">급여: ${r.salary ? r.salary.toLocaleString() : 0}원</p>
-            <p class="text-xs text-slate-500 mt-2">${r.description || '설명 없음'}</p>
+      const container = document.getElementById('roleCardsContainer');
+      container.innerHTML = '';
+      state.roles.forEach(r => {
+        const div = document.createElement('div');
+        div.className = "border rounded-xl p-4 bg-gray-50 space-y-2 shadow-sm relative";
+        div.innerHTML = `
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-lg text-gray-800">${r.name}</h3>
+            <span class="text-sm font-bold text-emerald-600">주 ${r.salary.toLocaleString()}원</span>
           </div>
-          <button onclick="deleteRole('${r.id}')" class="text-xs text-rose-400 hover:text-rose-600">삭제</button>
-        </div>
-      `).join('');
+          <p class="text-xs text-gray-500">배정 인원: ${state.students.filter(s => s.role === r.name).length}명</p>
+          <div class="pt-2 flex justify-end gap-2">
+            <button onclick="editRole(${r.id})" class="text-xs text-gray-600 hover:underline">수정</button>
+            <button onclick="deleteRole(${r.id})" class="text-xs text-red-500 hover:underline">삭제</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderSelectionGrids() {
+      const renderGrid = (containerId, type) => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        state.students.forEach(s => {
+          const label = document.createElement('label');
+          label.className = "flex items-center gap-2 p-2 bg-white border rounded-lg hover:bg-indigo-50 cursor-pointer text-sm";
+          label.innerHTML = `<input type="checkbox" value="${s.id}" class="${type}-checkbox rounded text-indigo-600"> <span>${s.name}</span>`;
+          container.appendChild(label);
+        });
+      };
+      renderGrid('deductStudentGrid', 'deduct');
+      renderGrid('payStudentGrid', 'pay');
+    }
+
+    function toggleSelectAll(type, checked) {
+      document.querySelectorAll(`.${type}-checkbox`).forEach(cb => cb.checked = checked);
     }
 
     function renderHistory() {
-      const historyEl = document.getElementById('history-list');
-      if (state.transactions.length === 0) {
-        historyEl.innerHTML = `<p class="text-slate-400 text-sm text-center py-6">기록된 거래 내역이 없습니다.</p>`;
-        return;
-      }
+      const q = document.getElementById('historySearch')?.value.toLowerCase() || '';
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
 
-      historyEl.innerHTML = state.transactions.map(t => `
-        <div class="p-3.5 border rounded-xl bg-slate-50 flex justify-between items-center">
-          <div>
-            <span class="font-bold text-slate-800 text-sm">${t.student_name || '전체 학생'}</span>
-            <span class="text-xs text-slate-400 ml-2">${t.reason}</span>
-          </div>
-          <div class="font-bold ${t.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'} text-sm">
-            ${t.amount > 0 ? '+' : ''}${t.amount ? t.amount.toLocaleString() : 0} 원
-          </div>
-        </div>
-      `).join('');
+      const filtered = state.logs.filter(l => l.studentName.toLowerCase().includes(q) || l.reason.toLowerCase().includes(q));
+      filtered.slice().reverse().forEach(l => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50";
+        const isPay = l.type === '지급';
+        tr.innerHTML = `
+          <td class="p-3 text-gray-400 text-xs">${l.date}</td>
+          <td class="p-3 font-semibold text-gray-800">${l.studentName}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${isPay ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${l.type}</span></td>
+          <td class="p-3 font-bold ${isPay ? 'text-green-600' : 'text-red-600'}">${isPay ? '+' : '-'}${l.amount.toLocaleString()}원</td>
+          <td class="p-3 text-gray-600">${l.reason}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
-    // 학생 등록 함수 (보안 및 데이터 호환성 보장)
-    async function handleAddStudent(e) {
-      e.preventDefault();
-      const numInput = document.getElementById('new-std-num').value;
-      const nameInput = document.getElementById('new-std-name').value.trim();
+    // Modal Operations
+    function openStudentModal(id) {
+      const student = state.students.find(s => s.id === id);
+      if (!student) return;
 
-      const num = parseInt(numInput, 10) || 0;
+      document.getElementById('modalStudentName').innerText = `${student.name} 학생 내역`;
+      document.getElementById('modalStudentBalance').innerText = student.balance.toLocaleString();
+      document.getElementById('modalStudentRole').innerText = student.role || '없음';
 
-      if (!nameInput) {
-        alert("학생 이름을 입력해 주세요.");
-        return;
+      const tbody = document.getElementById('modalHistoryBody');
+      tbody.innerHTML = '';
+      const sLogs = state.logs.filter(l => l.studentName === student.name).slice().reverse();
+
+      if (sLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">거래 내역이 없습니다.</td></tr>`;
+      } else {
+        sLogs.forEach(l => {
+          const isPay = l.type === '지급';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="p-2 text-gray-400">${l.date.split(' ')[0]}</td>
+            <td class="p-2 font-bold ${isPay ? 'text-green-600' : 'text-red-600'}">${l.type}</td>
+            <td class="p-2 font-semibold">${isPay ? '+' : '-'}${l.amount.toLocaleString()}</td>
+            <td class="p-2 text-gray-600">${l.reason}</td>
+          `;
+          tbody.appendChild(tr);
+        });
       }
 
-      const { data, error } = await supabase.from('students').insert([{
-        id: 'std_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        number: num,
-        name: nameInput,
-        balance: 0
-      }]);
+      document.getElementById('studentModal').classList.remove('hidden');
+      document.getElementById('studentModal').classList.add('flex');
+    }
 
-      if (error) {
-        console.error("에러 메시지:", error);
-        alert(`등록 실패! 원인: ${error.message}`);
-      } else {
-        alert("학생 등록 성공!");
-        e.target.reset();
-        fetchData();
+    function closeModal() {
+      document.getElementById('studentModal').classList.add('hidden');
+      document.getElementById('studentModal').classList.remove('flex');
+    }
+
+    // Student Actions
+    function addStudentPrompt() {
+      const name = prompt("새 학생 이름을 입력하세요:");
+      if (!name) return;
+      const newId = Date.now();
+      state.students.push({ id: newId, name: name.trim(), role: "없음", balance: 0 });
+      syncCloud();
+      renderAll();
+    }
+
+    function editStudentRole(id) {
+      const student = state.students.find(s => s.id === id);
+      if (!student) return;
+      const roleNames = state.roles.map(r => r.name).join(", ");
+      const newRole = prompt(`담당할 역할을 입력하세요 (${roleNames}):`, student.role);
+      if (newRole !== null) {
+        student.role = newRole.trim() || "없음";
+        syncCloud();
+        renderAll();
       }
     }
 
     async function deleteStudent(id) {
-      if (!confirm("해당 학생을 삭제하시겠습니까?")) return;
-      const { error } = await supabase.from('students').delete().eq('id', id);
-      if (error) alert("삭제 실패: " + error.message);
-      else fetchData();
+      if (!await verifyPassword()) return;
+      state.students = state.students.filter(s => s.id !== id);
+      syncCloud();
+      renderAll();
     }
 
-    async function handleAddRole(e) {
-      e.preventDefault();
-      const title = document.getElementById('role-title').value.trim();
-      const salary = parseInt(document.getElementById('role-salary').value, 10) || 0;
-      const desc = document.getElementById('role-desc').value.trim();
+    // Role Actions
+    function addRolePrompt() {
+      const name = prompt("새 역할 이름을 입력하세요:");
+      if (!name) return;
+      const salary = parseInt(prompt("주급 금액을 입력하세요:", "3000") || "0");
+      state.roles.push({ id: Date.now(), name: name.trim(), salary: salary });
+      syncCloud();
+      renderAll();
+    }
 
-      const { error } = await supabase.from('roles').insert([{
-        id: 'role_' + Date.now(),
-        title: title,
-        salary: salary,
-        description: desc
-      }]);
-
-      if (error) alert("직업 추가 실패: " + error.message);
-      else {
-        e.target.reset();
-        fetchData();
+    function editRole(id) {
+      const role = state.roles.find(r => r.id === id);
+      if (!role) return;
+      const name = prompt("역할 이름:", role.name);
+      const salary = prompt("주급 금액:", role.salary);
+      if (name && salary) {
+        role.name = name.trim();
+        role.salary = parseInt(salary);
+        syncCloud();
+        renderAll();
       }
     }
 
     async function deleteRole(id) {
-      if (!confirm("해당 직업을 삭제하시겠습니까?")) return;
-      const { error } = await supabase.from('roles').delete().eq('id', id);
-      if (error) alert("삭제 실패: " + error.message);
-      else fetchData();
+      if (!await verifyPassword()) return;
+      state.roles = state.roles.filter(r => r.id !== id);
+      syncCloud();
+      renderAll();
     }
 
-    async function handleTransaction(e) {
-      e.preventDefault();
-      const target = document.getElementById('tx-target').value;
-      const amount = parseInt(document.getElementById('tx-amount').value, 10);
-      const reason = document.getElementById('tx-reason').value.trim();
+    // Transaction Actions
+    function nowStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
 
-      if (isNaN(amount)) return alert("금액을 정확히 입력해주세요.");
+    function processDeduction() {
+      const selectedIds = Array.from(document.querySelectorAll('.deduct-checkbox:checked')).map(cb => parseInt(cb.value));
+      const amount = parseInt(document.getElementById('deductAmount').value);
+      const reason = document.getElementById('deductReason').value.trim();
 
-      try {
-        if (target === "ALL") {
-          for (const std of state.students) {
-            const newBal = (std.balance || 0) + amount;
-            await supabase.from('students').update({ balance: newBal }).eq('id', std.id);
-          }
-          await supabase.from('transactions').insert([{
-            id: 'tx_' + Date.now(),
-            student_name: '전체 학생',
+      if (selectedIds.length === 0 || isNaN(amount) || amount <= 0 || !reason) {
+        alert("학생 선택, 금액, 사유를 바르게 입력하세요.");
+        return;
+      }
+
+      selectedIds.forEach(id => {
+        const student = state.students.find(s => s.id === id);
+        if (student) {
+          student.balance -= amount;
+          state.logs.push({
+            id: Date.now() + Math.random(),
+            date: nowStr(),
+            studentName: student.name,
+            type: "차감",
             amount: amount,
-            reason: reason,
-            balance_after: 0
-          }]);
-        } else {
-          const std = state.students.find(s => s.id === target);
-          const newBal = (std.balance || 0) + amount;
-          await supabase.from('students').update({ balance: newBal }).eq('id', std.id);
-          await supabase.from('transactions').insert([{
-            id: 'tx_' + Date.now(),
-            student_id: std.id,
-            student_name: std.name,
-            amount: amount,
-            reason: reason,
-            balance_after: newBal
-          }]);
+            reason: reason
+          });
         }
+      });
 
-        alert("적용이 완료되었습니다.");
-        document.getElementById('tx-form').reset();
-        fetchData();
-      } catch (err) {
-        alert("처리 실패: " + err.message);
+      document.getElementById('deductAmount').value = '';
+      document.getElementById('deductReason').value = '';
+      syncCloud();
+      renderAll();
+      alert(`${selectedIds.length}명 처리 완료!`);
+    }
+
+    function processBonusPay() {
+      const selectedIds = Array.from(document.querySelectorAll('.pay-checkbox:checked')).map(cb => parseInt(cb.value));
+      const amount = parseInt(document.getElementById('payAmount').value);
+      const reason = document.getElementById('payReason').value.trim();
+
+      if (selectedIds.length === 0 || isNaN(amount) || amount <= 0 || !reason) {
+        alert("학생 선택, 금액, 사유를 바르게 입력하세요.");
+        return;
+      }
+
+      selectedIds.forEach(id => {
+        const student = state.students.find(s => s.id === id);
+        if (student) {
+          student.balance += amount;
+          state.logs.push({
+            id: Date.now() + Math.random(),
+            date: nowStr(),
+            studentName: student.name,
+            type: "지급",
+            amount: amount,
+            reason: reason
+          });
+        }
+      });
+
+      document.getElementById('payAmount').value = '';
+      document.getElementById('payReason').value = '';
+      syncCloud();
+      renderAll();
+      alert(`${selectedIds.length}명 지급 완료!`);
+    }
+
+    function payWeeklySalaries() {
+      if (!confirm("모든 학생에게 담당 역할의 주급을 지급하시겠습니까?")) return;
+      let count = 0;
+      state.students.forEach(student => {
+        const role = state.roles.find(r => r.name === student.role);
+        if (role && role.salary > 0) {
+          student.balance += role.salary;
+          state.logs.push({
+            id: Date.now() + Math.random(),
+            date: nowStr(),
+            studentName: student.name,
+            type: "지급",
+            amount: role.salary,
+            reason: `주급 지급 (${role.name})`
+          });
+          count++;
+        }
+      });
+      syncCloud();
+      renderAll();
+      alert(`${count}명에게 주급 지급 완료!`);
+    }
+
+    // Admin Password Update
+    async function updateAdminPassword() {
+      const newPass = document.getElementById('adminPasswordInput').value;
+      if (!newPass) { alert("비밀번호를 입력하세요."); return; }
+      if (await verifyPassword()) {
+        state.settings.adminPasswordHash = await hashSHA256(newPass);
+        saveLocalStorage();
+        alert("비밀번호가 성공적으로 변경되었습니다.");
+        document.getElementById('adminPasswordInput').value = '';
+      }
+    }
+
+    // Reset & Backup
+    async function resetSemester() {
+      if (!await verifyPassword()) return;
+      if (confirm("정말로 학기를 초기화하시겠습니까? 학생 잔액과 거래 내역이 리셋됩니다.")) {
+        state.students.forEach(s => s.balance = 0);
+        state.logs = [];
+        syncCloud();
+        renderAll();
+        alert("학기 데이터 초기화 완료.");
       }
     }
 
     function exportToExcel() {
-      const data = state.students.map(s => ({
-        '번호': s.number,
-        '이름': s.name,
-        '잔액': s.balance || 0
-      }));
-      const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "학생명단");
-      XLSX.writeFile(wb, "학급화폐_학생명단.xlsx");
+      const wsStudents = XLSX.utils.json_to_sheet(state.students);
+      const wsRoles = XLSX.utils.json_to_sheet(state.roles);
+      const wsLogs = XLSX.utils.json_to_sheet(state.logs);
+
+      XLSX.utils.book_append_sheet(wb, wsStudents, "학생목록");
+      XLSX.utils.book_append_sheet(wb, wsRoles, "역할목록");
+      XLSX.utils.book_append_sheet(wb, wsLogs, "거래내역");
+
+      XLSX.writeFile(wb, `학급화폐_백업_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    window.addEventListener('DOMContentLoaded', fetchData);
+    function importFromExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          if (workbook.Sheets["학생목록"]) state.students = XLSX.utils.sheet_to_json(workbook.Sheets["학생목록"]);
+          if (workbook.Sheets["역할목록"]) state.roles = XLSX.utils.sheet_to_json(workbook.Sheets["역할목록"]);
+          if (workbook.Sheets["거래내역"]) state.logs = XLSX.utils.sheet_to_json(workbook.Sheets["거래내역"]);
+          syncCloud();
+          renderAll();
+          alert("엑셀 데이터 불러오기 성공!");
+        } catch (err) {
+          alert("엑셀 파일 양식이 올바르지 않습니다.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
   </script>
 </body>
 </html>
