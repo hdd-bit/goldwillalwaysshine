@@ -263,7 +263,6 @@
                                 <th class="p-3">금액</th>
                                 <th class="p-3">거래 후 잔액</th>
                                 <th class="p-3">사유</th>
-                                <th class="p-3 text-center">관리</th>
                             </tr>
                         </thead>
                         <tbody id="history-tbody" class="divide-y divide-slate-100">
@@ -275,6 +274,28 @@
 
         <!-- 설정 / 관리 탭 -->
         <div id="tab-settings" class="tab-content hidden space-y-6">
+            <!-- [추가] 교사 전용 잔액 수동 수정 메뉴 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-200 bg-amber-50/20">
+                <h2 class="text-lg font-bold text-amber-900 mb-2">🔒 잔액 수동 수정 (선생님만 가능)</h2>
+                <p class="text-xs text-slate-500 mb-4">선택한 학생의 잔액을 직접 조정합니다. 수정 시 차액에 대한 사유가 <strong>[선생님께서 직접 수정하심]</strong>으로 거래 내역에 자동 기록됩니다.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">학생 선택</label>
+                        <select id="manual-student-select" onchange="onManualStudentSelect(this.value)" class="border p-2 rounded text-sm w-full bg-white">
+                            <option value="">학생을 선택하세요...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">변경할 잔액 (챔)</label>
+                        <input type="number" id="manual-balance-input" placeholder="새 잔액 입력" class="border p-2 rounded text-sm w-full bg-white">
+                    </div>
+                    <button onclick="processManualBalanceChange()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded text-sm transition">
+                        잔액 수동 수정 적용
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-lg font-bold mb-4">데이터 엑셀 백업 & 불러오기</h2>
                 <div class="flex flex-wrap gap-3">
@@ -828,6 +849,17 @@
                 filterSel.value = currentVal || 'ALL';
             }
 
+            // 설정/관리 탭의 수동 잔액 수정 셀렉트 업데이트
+            const manualSel = document.getElementById('manual-student-select');
+            if (manualSel) {
+                const currentVal = manualSel.value;
+                manualSel.innerHTML = '<option value="">학생을 선택하세요...</option>';
+                Object.values(students).sort((a,b) => a.number - b.number).forEach(s => {
+                    manualSel.innerHTML += `<option value="${s.id}">${s.number}번 ${s.name} (현재: ${s.balance}챔)</option>`;
+                });
+                manualSel.value = currentVal;
+            }
+
             renderCheckboxList('use-student-list', 'use-chk');
             renderCheckboxList('deduct-student-list', 'deduct-chk');
             renderCheckboxList('weekly-student-list', 'weekly-chk');
@@ -1026,6 +1058,77 @@
             alert(`${chks.length}명의 학생에게 보너스 지급이 완료되었습니다.`);
         }
 
+        // [추가] 잔액 수동 수정 셀렉트 선택 이벤트
+        function onManualStudentSelect(studentId) {
+            const balInput = document.getElementById('manual-balance-input');
+            if (studentId && students[studentId]) {
+                balInput.value = students[studentId].balance;
+            } else {
+                balInput.value = '';
+            }
+        }
+
+        // [추가] 교사 전용 잔액 수동 수정 처리
+        async function processManualBalanceChange() {
+            const studentId = document.getElementById('manual-student-select').value;
+            const newBalInput = document.getElementById('manual-balance-input').value;
+
+            if (!studentId || !students[studentId]) return alert("수정할 학생을 선택해 주세요.");
+            if (newBalInput === "" || isNaN(newBalInput)) return alert("올바른 잔액을 입력해 주세요.");
+
+            const newBal = parseInt(newBalInput);
+            const currentBal = Number(students[studentId].balance) || 0;
+            const diff = newBal - currentBal;
+
+            if (diff === 0) return alert("기존 잔액과 동일합니다.");
+
+            if (!await verifyPasswordPrompt()) return;
+
+            students[studentId].balance = newBal;
+            students[studentId].updatedAt = new Date().toISOString();
+            await syncStudentToCloud(students[studentId]);
+
+            // 차액 기록 ([선생님께서 직접 수정하심])
+            await logTransaction(
+                studentId,
+                students[studentId].name,
+                "수동수정",
+                diff,
+                "[선생님께서 직접 수정하심]",
+                newBal
+            );
+
+            renderStudents();
+            renderStudentSelects();
+            updateDashboard();
+            alert(`${students[studentId].name} 학생의 잔액이 ${newBal}챔으로 변경되었습니다.`);
+        }
+
+        // 학생별 시간순 잔액 재계산 함수
+        async function recalculateStudentBalance(studentId) {
+            const studentTxs = Object.values(transactions)
+                .filter(t => t.studentId === studentId)
+                .sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+            let runningBal = 0;
+            for (let t of studentTxs) {
+                const amt = Number(t.amount) || 0;
+                if (t.type === '등록' || t.type === '가져오기') {
+                    runningBal = amt;
+                } else {
+                    runningBal += amt;
+                }
+                t.balanceAfter = runningBal;
+                await syncTxToCloud(t);
+            }
+
+            if (students[studentId]) {
+                students[studentId].balance = runningBal;
+                students[studentId].updatedAt = new Date().toISOString();
+                await syncStudentToCloud(students[studentId]);
+            }
+        }
+
         function renderHistory() {
             const tbody = document.getElementById('history-tbody');
             tbody.innerHTML = '';
@@ -1097,46 +1200,45 @@
                     <td class="p-3 ${amtColor}">${amtSign} 챔</td>
                     <td class="p-3 text-slate-600">${t.correctBalanceAfter} 챔</td>
                     <td class="p-3 text-slate-500">${t.reason}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="deleteSingleTransaction('${t.id}')" class="text-xs text-red-500 hover:text-red-700 font-medium">삭제</button>
-                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        async function deleteSingleTransaction(txId) {
-            if (!await verifyPasswordPrompt()) return;
-
-            if (confirm("이 거래 내역을 삭제하시겠습니까?")) {
-                delete transactions[txId];
-                const { error } = await _supabase.from('transactions').delete().eq('id', txId);
-                if (error) console.error("개별 거래 내역 삭제 실패:", error);
-                
-                renderHistory();
-                updateDashboard();
-                alert("거래 내역이 삭제되었습니다.");
-            }
-        }
-
+        // [수정] 거래 내역 선택 삭제 시 원복 및 학생 거래 시점 재계산
         async function deleteSelectedTransactions() {
             const chks = document.querySelectorAll('.tx-chk:checked');
             if (chks.length === 0) return alert("삭제할 거래 내역을 선택해 주세요.");
 
             if (!await verifyPasswordPrompt()) return;
 
-            if (confirm(`선택한 ${chks.length}건의 거래 내역을 삭제하시겠습니까?`)) {
+            if (confirm(`선택한 ${chks.length}건의 거래 내역을 삭제하고 관련 학생의 잔액을 재계산(원복)하시겠습니까?`)) {
+                const affectedStudents = new Set();
+
                 for (let chk of chks) {
                     const txId = chk.value;
-                    delete transactions[txId];
-                    const { error } = await _supabase.from('transactions').delete().eq('id', txId);
-                    if (error) console.error("거래 내역 삭제 실패:", error);
+                    const tx = transactions[txId];
+                    if (tx) {
+                        affectedStudents.add(tx.studentId);
+                        delete transactions[txId];
+                        const { error } = await _supabase.from('transactions').delete().eq('id', txId);
+                        if (error) console.error("거래 내역 삭제 실패:", error);
+                    }
                 }
+
+                // 영향을 받은 모든 학생의 잔액 및 남아있는 거래 내역의 balanceAfter 재계산
+                for (let studentId of affectedStudents) {
+                    await recalculateStudentBalance(studentId);
+                }
+
                 const chkAll = document.getElementById('chk-all-tx');
                 if (chkAll) chkAll.checked = false;
+
+                renderStudents();
+                renderStudentSelects();
                 renderHistory();
                 updateDashboard();
-                alert("선택한 거래 내역이 성공적으로 삭제되었습니다.");
+                alert("선택한 거래 내역 삭제 및 잔액 원복(재계산)이 성공적으로 완료되었습니다.");
             }
         }
 
