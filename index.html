@@ -50,6 +50,7 @@
             </div>
         </div>
 
+        <!-- 학생 관리 탭 -->
         <div id="tab-students" class="tab-content space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -94,6 +95,7 @@
             </div>
         </div>
 
+        <!-- 역할 관리 탭 -->
         <div id="tab-roles" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-lg font-bold mb-4">신규 역할 추가</h2>
@@ -114,6 +116,7 @@
             </div>
         </div>
 
+        <!-- 화폐 사용 / 벌금 차감 탭 -->
         <div id="tab-use" class="tab-content hidden grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
                 <div>
@@ -162,6 +165,7 @@
             </div>
         </div>
 
+        <!-- 지급 탭 -->
         <div id="tab-weekly" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-200 bg-blue-50/30">
                 <div class="flex justify-between items-center mb-3">
@@ -226,6 +230,7 @@
             </div>
         </div>
 
+        <!-- 거래 내역 탭 -->
         <div id="tab-history" class="tab-content hidden space-y-4">
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3 items-center justify-between">
                 <div class="flex flex-wrap gap-3 items-center flex-grow">
@@ -267,6 +272,7 @@
             </div>
         </div>
 
+        <!-- 설정 / 관리 탭 -->
         <div id="tab-settings" class="tab-content hidden space-y-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-lg font-bold mb-4">데이터 엑셀 백업 & 불러오기</h2>
@@ -299,6 +305,7 @@
         </div>
     </div>
 
+    <!-- 비밀번호 모달 -->
     <div id="pwd-modal" class="fixed inset-0 bg-slate-900/50 hidden backdrop-blur-sm flex items-center justify-center z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl border border-slate-200">
             <h3 class="text-lg font-bold text-slate-800 mb-2">비밀번호 확인</h3>
@@ -1037,7 +1044,7 @@
                 semSel.value = currentSem || 'ALL';
             }
 
-            // 학생별로 생성일 기준 오름차순 재계산 로직 추가 (누적 잔액 꼬임 방지)
+            // 학생별로 생성일 기준 오름차순 재계산 로직 (누적 잔액 꼬임 방지)
             const calculatedMap = {};
             const studentGrouped = {};
 
