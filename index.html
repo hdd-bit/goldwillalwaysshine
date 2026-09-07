@@ -339,7 +339,7 @@
                     stdData.forEach(s => {
                         students[s.id] = {
                             id: s.id,
-                            number: s.number,
+                            number: Number(s.number) || 0,
                             name: s.name,
                             balance: Number(s.balance) || 0,
                             roleId: s.role_id || null,
@@ -359,7 +359,7 @@
                         roles[r.id] = {
                             id: r.id,
                             title: r.title,
-                            salary: r.salary,
+                            salary: Number(r.salary) || 0,
                             description: r.description
                         };
                     });
@@ -376,9 +376,9 @@
                             studentId: t.student_id,
                             studentName: t.student_name,
                             type: t.type,
-                            amount: t.amount,
+                            amount: Number(t.amount) || 0,
                             reason: t.reason,
-                            balanceAfter: t.balance_after,
+                            balanceAfter: Number(t.balance_after) || 0,
                             semester: t.semester,
                             createdAt: t.created_at
                         };
@@ -486,7 +486,6 @@
             });
         });
 
-        // 커스텀 모달 방식 비밀번호 입력 (비밀번호 마스킹)
         function verifyPasswordPrompt() {
             return new Promise((resolve) => {
                 const modal = document.getElementById('pwd-modal');
@@ -537,7 +536,6 @@
 
         function updateDashboard() {
             const list = Object.values(students);
-            // 전체 학생 화폐 잔액 누계 계산 (수정사항 1)
             const totalCham = list.reduce((acc, cur) => acc + (Number(cur.balance) || 0), 0);
             const totalTx = Object.keys(transactions).length;
             document.getElementById('stat-total-students').innerText = `${list.length}명`;
@@ -829,7 +827,6 @@
             renderRoleSalarySummary();
         }
 
-        // 역할별 지급 체크박스 추가 (수정사항 2)
         function renderRoleSalarySummary() {
             const container = document.getElementById('role-salary-summary');
             if (!container) return;
@@ -863,9 +860,9 @@
                 studentId: studentId,
                 studentName: studentName,
                 type: type,
-                amount: amount,
+                amount: Number(amount) || 0,
                 reason: reason,
-                balanceAfter: balanceAfter,
+                balanceAfter: Number(balanceAfter) || 0,
                 semester: settings.currentSemester,
                 createdAt: new Date().toISOString()
             };
@@ -893,7 +890,7 @@
 
             for (let chk of chks) {
                 const id = chk.value;
-                const newBal = students[id].balance - amt;
+                const newBal = Number(students[id].balance) - amt;
                 students[id].balance = newBal;
                 await syncStudentToCloud(students[id]);
                 await logTransaction(id, students[id].name, "사용", -amt, reason, newBal);
@@ -925,7 +922,7 @@
 
             for (let chk of chks) {
                 const id = chk.value;
-                const newBal = students[id].balance - amt;
+                const newBal = Number(students[id].balance) - amt;
                 students[id].balance = newBal;
                 await syncStudentToCloud(students[id]);
                 await logTransaction(id, students[id].name, "차감", -amt, reason, newBal);
@@ -939,7 +936,6 @@
             alert("차감 처리가 완료되었습니다.");
         }
 
-        // 선택된 역할만 일괄 지급하도록 수정 (수정사항 2)
         async function processRoleBasedSalary() {
             const checkedRoles = Array.from(document.querySelectorAll('.role-pay-chk:checked')).map(el => el.value);
             if (checkedRoles.length === 0) return alert("일괄 지급할 역할을 최소 하나 이상 선택해 주세요.");
@@ -954,7 +950,7 @@
                 const role = roles[s.roleId];
                 const amt = Number(role.salary) || 0;
                 if (amt > 0) {
-                    const newBal = s.balance + amt;
+                    const newBal = Number(s.balance) + amt;
                     s.balance = newBal;
                     await syncStudentToCloud(s);
                     await logTransaction(s.id, s.name, "주급", amt, `[${role.title}] 역할 주급 지급`, newBal);
@@ -981,7 +977,7 @@
 
             for (let chk of chks) {
                 const id = chk.value;
-                const newBal = (students[id].balance || 0) + amt;
+                const newBal = Number(students[id].balance || 0) + amt;
                 students[id].balance = newBal;
                 await syncStudentToCloud(students[id]);
                 await logTransaction(id, students[id].name, "주급", amt, reason, newBal);
@@ -1008,7 +1004,7 @@
 
             for (let chk of chks) {
                 const id = chk.value;
-                const newBal = (students[id].balance || 0) + amt;
+                const newBal = Number(students[id].balance || 0) + amt;
                 students[id].balance = newBal;
                 await syncStudentToCloud(students[id]);
                 await logTransaction(id, students[id].name, "보너스", amt, reason, newBal);
@@ -1030,9 +1026,9 @@
             const filterSemester = document.getElementById('filter-semester')?.value || 'ALL';
             const keyword = (document.getElementById('filter-keyword')?.value || '').toLowerCase();
 
-            let list = Object.values(transactions);
+            let rawList = Object.values(transactions);
 
-            const semesters = [...new Set(list.map(t => t.semester))].filter(Boolean);
+            const semesters = [...new Set(rawList.map(t => t.semester))].filter(Boolean);
             const semSel = document.getElementById('filter-semester');
             if (semSel) {
                 const currentSem = semSel.value;
@@ -1040,6 +1036,34 @@
                 semesters.forEach(s => semSel.innerHTML += `<option value="${s}">${s}</option>`);
                 semSel.value = currentSem || 'ALL';
             }
+
+            // 학생별로 생성일 기준 오름차순 재계산 로직 추가 (누적 잔액 꼬임 방지)
+            const calculatedMap = {};
+            const studentGrouped = {};
+
+            rawList.forEach(t => {
+                if (!studentGrouped[t.studentId]) studentGrouped[t.studentId] = [];
+                studentGrouped[t.studentId].push(t);
+            });
+
+            Object.keys(studentGrouped).forEach(sid => {
+                const txs = studentGrouped[sid].sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+                let runningBal = 0;
+                txs.forEach(t => {
+                    const amt = Number(t.amount) || 0;
+                    if (t.type === '등록' || t.type === '가져오기') {
+                        runningBal = amt;
+                    } else {
+                        runningBal += amt;
+                    }
+                    calculatedMap[t.id] = runningBal;
+                });
+            });
+
+            let list = rawList.map(t => ({
+                ...t,
+                correctBalanceAfter: calculatedMap[t.id] !== undefined ? calculatedMap[t.id] : t.balanceAfter
+            }));
 
             if (filterStudent !== 'ALL') list = list.filter(t => t.studentId === filterStudent);
             if (filterSemester !== 'ALL') list = list.filter(t => t.semester === filterSemester);
@@ -1054,7 +1078,6 @@
                 const amtSign = t.amount > 0 ? `+${t.amount}` : t.amount;
                 const formattedDate = t.createdAt ? new Date(t.createdAt).toLocaleString('ko-KR') : '-';
 
-                // 거래 내역 체크박스 항목 추가 (수정사항 3)
                 tr.innerHTML = `
                     <td class="p-3 text-center">
                         <input type="checkbox" value="${t.id}" class="tx-chk rounded text-blue-600">
@@ -1064,14 +1087,13 @@
                     <td class="p-3 font-medium">${t.studentName}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${t.type}</span></td>
                     <td class="p-3 ${amtColor}">${amtSign} 챔</td>
-                    <td class="p-3 text-slate-600">${t.balanceAfter} 챔</td>
+                    <td class="p-3 text-slate-600">${t.correctBalanceAfter} 챔</td>
                     <td class="p-3 text-slate-500">${t.reason}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        // 선택 거래 내역 삭제 기능 (수정사항 3)
         async function deleteSelectedTransactions() {
             const chks = document.querySelectorAll('.tx-chk:checked');
             if (chks.length === 0) return alert("삭제할 거래 내역을 선택해 주세요.");
@@ -1093,7 +1115,6 @@
             }
         }
 
-        // 거래 내역 전체 초기화
         async function resetTransactions() {
             if (!await verifyPasswordPrompt()) return;
             if (confirm("정말 모든 거래 내역을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
